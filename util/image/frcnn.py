@@ -4,6 +4,7 @@ import logging
 import numpy as np
 import os
 import pandas as pd
+import pathlib
 import torch
 from tqdm import tqdm
 
@@ -65,11 +66,11 @@ def get_region_features(raw_images:List[np.ndarray],predictor:DefaultPredictor)-
     
     return ret
 
-class ImageFeatureExtractor(object):
+class ImageFeatureExtractorBase(object):
     """
     基底クラス
     """
-    def __init__(self,model_name):
+    def __init__(self,model_name:str):
         cfg=get_cfg()
         cfg.merge_from_file(model_zoo.get_config_file(model_name))
         cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST=0.7
@@ -77,7 +78,7 @@ class ImageFeatureExtractor(object):
         cfg.MODEL.WEIGHTS=model_zoo.get_checkpoint_url(model_name)
         self.predictor=DefaultPredictor(cfg)
 
-class WikipediaImageFeatureExtractor(ImageFeatureExtractor):
+class WikipediaImageFeatureExtractor(ImageFeatureExtractorBase):
     """
     Wikipediaから収集された画像を使用して画像の特徴量を抽出する。
     """
@@ -87,10 +88,7 @@ class WikipediaImageFeatureExtractor(ImageFeatureExtractor):
         model_name:str="COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml",
         logger:logging.Logger=default_logger):
         super().__init__(model_name)
-
-        #コンテキストの一覧を読み込む。
         self.articles_list=pd.read_csv(article_list_filepath,encoding="utf_8",sep="\t")
-        
         self.logger=logger
 
     def extract_image_features(self,image_root_dir:str,save_dir:str):
@@ -102,15 +100,43 @@ class WikipediaImageFeatureExtractor(ImageFeatureExtractor):
             image_dir=os.path.join(image_root_dir,str(sec1),str(sec2))
 
             pathname=os.path.join(image_dir,"*")
-            image_files=glob.glob(pathname)
+            files=glob.glob(pathname)
             images=[]
-            for image_file in image_files:
-                image=cv2.imread(image_file)
+            for file in files:
+                image=cv2.imread(file)
                 images.append(image)
 
             features=get_region_features(images,self.predictor)
             
             title_hash=hashing.get_md5_hash(article_name)
             save_filepath=os.path.join(save_dir,title_hash+".pt")
+            torch.save(features,save_filepath)
 
+class ImageFeatureExtractor(ImageFeatureExtractorBase):
+    """
+    検索エンジンから収集された画像を使用して画像の特徴量を抽出する。
+    """
+    def __init__(self,model_name:str,logger:logging.Logger=default_logger):
+        super().__init__(model_name)
+        self.logger=logger
+
+    def extract_image_features(self,image_root_dir:str,save_dir:str):
+        """
+        画像の特徴量を抽出する。
+        """
+        pathname=os.path.join(image_root_dir,"*")
+        directories=glob.glob(pathname)
+        for directory in tqdm(directories,total=len(directories)):
+            pathname=os.path.join(directory,"*[!txt]")
+            files=glob.glob(pathname)
+
+            images=[]
+            for file in files:
+                image=cv2.imread(file)
+                images.append(image)
+
+            features=get_region_features(images,self.predictor)
+
+            title_hash=os.path.basename(directory)
+            save_filepath=os.path.join(save_dir,title_hash+".pt")
             torch.save(features,save_filepath)
