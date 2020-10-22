@@ -17,10 +17,10 @@ class InputExample(object):
     """
     問題
     """
-    def __init__(self, qid:str, question:str, endings:List[str], label:int):
+    def __init__(self, qid:str, question:str, options:List[str], label:int):
         self.qid = qid
         self.question = question
-        self.endings = endings
+        self.options = options
         self.label = label
 
 def load_examples(example_filepath:str)->List[InputExample]:
@@ -72,7 +72,7 @@ def encode_examples(
     max_seq_length:int,
     logger:logging.Logger)->Dict[str,torch.Tensor]:
     #最初の問題の選択肢の数を代表値として取得する。
-    num_options=len(examples[0].endings)
+    num_options=len(examples[0].options)
 
     input_ids=torch.empty(len(examples),num_options,max_seq_length,dtype=torch.long)
     attention_mask=torch.empty(len(examples),num_options,max_seq_length,dtype=torch.long)
@@ -80,9 +80,9 @@ def encode_examples(
     labels=torch.empty(len(examples),dtype=torch.long)
 
     for example_index,example in enumerate(tqdm(examples)):
-        for option_index,ending in enumerate(example.endings):
-            text_a=example.question+tokenizer.sep_token+ending
-            text_b=contexts[ending]
+        for option_index,option in enumerate(example.options):
+            text_a=example.question+tokenizer.sep_token+option
+            text_b=contexts[option]
 
             encoding = tokenizer.encode_plus(
                 text_a,
