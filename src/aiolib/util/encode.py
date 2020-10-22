@@ -133,7 +133,7 @@ class ExampleEncoder(object):
         bert_model_dir:str,
         max_seq_length:int=512,
         logger:logging.Logger=default_logger):
-        logger.info("{}からコンテキストを読み込みます。")
+        logger.info("{}からコンテキストを読み込みます。".format(context_filepath))
         self.contexts=load_contexts(context_filepath)
 
         self.tokenizer=None
