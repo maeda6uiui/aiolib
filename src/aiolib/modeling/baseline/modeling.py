@@ -169,6 +169,15 @@ class BaselineModeler(object):
         dev_dataset=create_dataset(dev_input_dir,num_examples=-1,num_options=20)
         self.dev_dataloader=DataLoader(dev_dataset,batch_size=4,shuffle=False)
 
+        self.bert_model_dir=bert_model_dir
+        self.__create_classifier_model(bert_model_dir)
+
+        logger.info("シード: {}".format(seed))
+        set_seed(seed)
+
+        self.logger=logger
+
+    def __create_classifier_model(self,bert_model_dir:str):
         self.classifier_model=None
         if bert_model_dir=="USE_DEFAULT":
             logger.info("デフォルトのBERT Pre-trainedモデルを読み込みます。")
@@ -178,16 +187,12 @@ class BaselineModeler(object):
             self.classifier_model=BertForMultipleChoice.from_pretrained(bert_model_dir)
         self.classifier_model.to(device)
 
-        logger.info("シード: {}".format(seed))
-        set_seed(seed)
-
-        self.logger=logger
-
     def train_and_eval(
         self,
         train_batch_size:int=4,
         num_epochs:int=5,
         lr:float=2.5e-5,
+        init_parameters=False,
         result_save_dir:str="./OutputDir",
         logging_steps:int=100):
         logger=self.logger
@@ -195,6 +200,9 @@ class BaselineModeler(object):
         logger.info("バッチサイズ: {}".format(train_batch_size))
         logger.info("エポック数: {}".format(num_epochs))
         logger.info("学習率: {}".format(lr))
+
+        if init_parameters:
+            self.__create_classifier_model(self.bert_model_dir)
 
         num_iterations=len(self.train_dataset)//train_batch_size
         total_steps=num_iterations*num_epochs
