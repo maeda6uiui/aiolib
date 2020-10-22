@@ -122,7 +122,10 @@ class ImageFeatureExtractor(ImageFeatureExtractorBase):
     """
     検索エンジンから収集された画像を使用して画像の特徴量を抽出する。
     """
-    def __init__(self,model_name:str,logger:logging.Logger=default_logger):
+    def __init__(
+        self,
+        model_name:str="COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml",
+        logger:logging.Logger=default_logger):
         super().__init__(model_name)
         self.logger=logger
 
