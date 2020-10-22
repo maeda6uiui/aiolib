@@ -229,7 +229,7 @@ class BaselineModeler(object):
             res=evaluate(self.classifier_model,self.dev_dataloader)
             accuracy=res["accuracy"]*100.0
             eval_loss=res["eval_loss"]
-            logger.info("正解率: {}".format(accuracy))
+            logger.info("正解率: {} %".format(accuracy))
             logger.info("評価時の損失平均値: {}".format(eval_loss))
 
             #テキストファイルに評価の結果を保存する。
@@ -237,7 +237,7 @@ class BaselineModeler(object):
             labels_filepath=os.path.join(result_save_dir,"labels_eval_{}.txt".format(epoch+1))
 
             with open(result_filepath,"w",encoding="utf_8",newline="") as w:
-                w.write("正解率: {}\n".format(accuracy))
+                w.write("正解率: {} %\n".format(accuracy))
                 w.write("評価時の損失平均値: {}\n".format(eval_loss))
 
             pred_labels=res["pred_labels"]
@@ -290,12 +290,12 @@ class BaselineTester(object):
         res=evaluate(self.classifier_model,self.test_dataloader)
         accuracy=res["accuracy"]*100.0
         eval_loss=res["eval_loss"]
-        logger.info("正解率: {}".format(accuracy))
+        logger.info("正解率: {} %".format(accuracy))
         logger.info("評価時の損失平均値: {}".format(eval_loss))
 
         #テキストファイルに評価の結果を保存する。
         with open(result_filepath,"w",encoding="utf_8",newline="") as w:
-            w.write("正解率: {}\n".format(accuracy))
+            w.write("正解率: {} %\n".format(accuracy))
             w.write("評価時の損失平均値: {}\n".format(eval_loss))
 
         pred_labels=res["pred_labels"]
