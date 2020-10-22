@@ -176,6 +176,7 @@ class BaselineModeler(object):
         else:
             logger.info("{}からBERTモデルを読み込みます。".format(bert_model_dir))
             self.classifier_model=BertForMultipleChoice.from_pretrained(bert_model_dir)
+        self.classifier_model.to(device)
 
         logger.info("シード: {}".format(seed))
         set_seed(seed)
@@ -267,6 +268,7 @@ class BaselineTester(object):
         else:
             logger.info("{}からBERTモデルを読み込みます。".format(bert_model_dir))
             self.classifier_model=BertForMultipleChoice.from_pretrained(bert_model_dir)
+        self.classifier_model.to(device)
 
         logger.info("シード: {}".format(seed))
         set_seed(seed)
