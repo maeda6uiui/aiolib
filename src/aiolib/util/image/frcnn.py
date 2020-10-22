@@ -101,6 +101,8 @@ class WikipediaImageFeatureExtractor(ImageFeatureExtractorBase):
         """
         画像の特徴量を抽出する。
         """
+        os.makedirs(save_dir,exist_ok=True)
+
         for row in tqdm(self.articles_list.values):
             article_name,sec1,sec2=row[:3]
             image_dir=os.path.join(image_root_dir,str(sec1),str(sec2))
@@ -133,6 +135,8 @@ class ImageFeatureExtractor(ImageFeatureExtractorBase):
         """
         画像の特徴量を抽出する。
         """
+        os.makedirs(save_dir,exist_ok=True)
+
         pathname=os.path.join(image_root_dir,"*")
         directories=glob.glob(pathname)
         for directory in tqdm(directories,total=len(directories)):
