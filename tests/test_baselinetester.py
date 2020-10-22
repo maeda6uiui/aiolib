@@ -14,10 +14,10 @@ def main(
     bert_model_dir:str,
     checkpoint_dir:str,
     result_save_dir:str):
-    tester=BaselineTester(test_input_dir,bert_model_dir,result_save_dir)
+    tester=BaselineTester(test_input_dir,bert_model_dir)
 
     for i in range(5):
-        checkpoint_filepath=os.path.join(checkpoint_dir,"checkpoint_{}.pt".format(i+i))
+        checkpoint_filepath=os.path.join(checkpoint_dir,"checkpoint_{}.pt".format(i+1))
         result_filepath=os.path.join(result_save_dir,"result_test_{}.txt".format(i+1))
         labels_filepath=os.path.join(result_save_dir,"labels_test_{}.txt".format(i+1))
 
