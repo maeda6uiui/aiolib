@@ -28,7 +28,7 @@ class Projector(object):
     def project(self,v:torch.Tensor)->torch.Tensor:
         return self.fc(v)
 
-    def project_from_files(self,src_dir:str,save_dir:str):
+    def project_from_directory(self,src_dir:str,save_dir:str):
         os.makedirs(save_dir,exist_ok=True)
 
         files=os.listdir(src_dir)
