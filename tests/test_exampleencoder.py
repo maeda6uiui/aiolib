@@ -22,7 +22,7 @@ if __name__=="__main__":
     leaderboard_save_dir="./WorkingDir/EncodedText/Leaderboard"
 
     encoder=ExampleEncoder(context_filepath,bert_model_dir)
-    encoder.encode_save(train_example_filepath,train_save_dir)
+    #encoder.encode_save(train_example_filepath,train_save_dir)
     encoder.encode_save(dev1_example_filepath,dev1_save_dir)
-    encoder.encode_save(dev2_example_filepath,dev2_save_dir)
-    encoder.encode_save(leaderboard_example_filepath,leaderboard_save_dir)
+    #encoder.encode_save(dev2_example_filepath,dev2_save_dir)
+    #encoder.encode_save(leaderboard_example_filepath,leaderboard_save_dir)
