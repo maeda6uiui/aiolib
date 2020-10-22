@@ -25,6 +25,9 @@ default_logger.setLevel(level=logging.INFO)
 device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def get_region_features_single(raw_image:np.ndarray,predictor:DefaultPredictor)->torch.Tensor:
+    """
+    一つの画像から特徴量を取得する。
+    """
     with torch.no_grad():
         raw_height,raw_width=raw_image.shape[:2]
 
@@ -45,11 +48,14 @@ def get_region_features_single(raw_image:np.ndarray,predictor:DefaultPredictor)-
             [features[f] for f in features if f!="p6"],
             [x.pred_boxes for x in instances]
         )
-        box_features=model.roi_heads.box_head(box_features)
+        box_features=model.roi_heads.box_head(box_features) #FC層の出力
 
         return box_features #(RoIの数,特徴量の次元数)
 
 def get_region_features(raw_images:List[np.ndarray],predictor:DefaultPredictor)->torch.Tensor:
+    """
+    複数の画像から特徴量を取得する。
+    """
     features_list=[]
     for raw_image in raw_images:
         features=get_region_features_single(raw_image,predictor)
