@@ -97,7 +97,7 @@ class WikipediaImageFeatureExtractor(ImageFeatureExtractorBase):
         self.articles_list=pd.read_csv(article_list_filepath,encoding="utf_8",sep="\t")
         self.logger=logger
 
-    def extract_image_features(self,image_root_dir:str,save_dir:str):
+    def extract(self,image_root_dir:str,save_dir:str):
         """
         画像の特徴量を抽出する。
         """
@@ -129,7 +129,7 @@ class ImageFeatureExtractor(ImageFeatureExtractorBase):
         super().__init__(model_name)
         self.logger=logger
 
-    def extract_image_features(self,image_root_dir:str,save_dir:str):
+    def extract(self,image_root_dir:str,save_dir:str):
         """
         画像の特徴量を抽出する。
         """
