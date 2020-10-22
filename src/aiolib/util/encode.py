@@ -129,13 +129,10 @@ class ExampleEncoder(object):
     """
     def __init__(
         self,
-        example_filepath:str,
         context_filepath:str,
         bert_model_dir:str,
         max_seq_length:int=512,
         logger:logging.Logger=default_logger):
-        logger.info("{}から問題を読み込みます。".format(example_filepath))
-        self.examples=load_examples(example_filepath)
         logger.info("{}からコンテキストを読み込みます。")
         self.contexts=load_contexts(context_filepath)
 
@@ -150,12 +147,15 @@ class ExampleEncoder(object):
         self.max_seq_length=max_seq_length
         self.logger=logger
 
-    def encode(self)->Dict[str,torch.Tensor]:
-        ret=encode_examples(self.tokenizer,self.examples,self.contexts,self.max_seq_length,self.logger)
+    def encode(self,example_filepath:str)->Dict[str,torch.Tensor]:
+        logger.info("{}から問題を読み込みます。".format(example_filepath))
+        examples=load_examples(example_filepath)
+
+        ret=encode_examples(self.tokenizer,examples,self.contexts,self.max_seq_length,self.logger)
         return ret
 
-    def encode_save(self,save_dir:str):
-        encoded=self.encode()
+    def encode_save(self,example_filepath:str,save_dir:str):
+        encoded=self.encode(example_filepath)
         
         os.makedirs(save_dir,exist_ok=True)
         input_ids_filepath=os.path.join(save_dir,"input_ids.pt")
