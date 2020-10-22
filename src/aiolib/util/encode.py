@@ -4,6 +4,7 @@
 import gzip
 import json
 import logging
+import os
 import torch
 from tqdm import tqdm
 from transformers import BertJapaneseTokenizer
@@ -152,3 +153,17 @@ class ExampleEncoder(object):
     def encode(self)->Dict[str,torch.Tensor]:
         ret=encode_examples(self.tokenizer,self.examples,self.contexts,self.max_seq_length,self.logger)
         return ret
+
+    def encode_save(self,save_dir:str):
+        encoded=self.encode()
+        
+        os.makedirs(save_dir,exist_ok=True)
+        input_ids_filepath=os.path.join(save_dir,"input_ids.pt")
+        token_type_ids_filepath=os.path.join(save_dir,"token_type_ids.pt")
+        attention_mask_filepath=os.path.join(save_dir,"attention_mask.pt")
+        labels_filepath=os.path.join(save_dir,"labels.pt")
+
+        torch.save(encoded["input_ids"],input_ids_filepath)
+        torch.save(encoded["token_type_ids"],token_type_ids_filepath)
+        torch.save(encoded["attention_mask"],attention_mask_filepath)
+        torch.save(encoded["labels"],labels_filepath)    
