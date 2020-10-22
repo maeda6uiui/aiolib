@@ -148,6 +148,7 @@ class ExampleEncoder(object):
         self.logger=logger
 
     def encode(self,example_filepath:str)->Dict[str,torch.Tensor]:
+        logger=self.logger
         logger.info("{}から問題を読み込みます。".format(example_filepath))
         examples=load_examples(example_filepath)
 
