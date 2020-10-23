@@ -6,6 +6,9 @@ sys.path.append(os.path.abspath("../src/aiolib"))
 
 from util.bm25.preprocessing import BM25Preprocessing
 
+logging_fmt="%(asctime)s %(levelname)s: %(message)s"
+logging.basicConfig(format=logging_fmt)
+
 def main(context_filepath:str,save_dir:str):
     preprocessing=BM25Preprocessing()
     preprocessing.preprocess(context_filepath,save_dir)
