@@ -58,7 +58,7 @@ def train(
     optimizer:torch.optim.Optimizer,
     scheduler:torch.optim.lr_scheduler.LambdaLR,
     dataloader:TensorDataset,
-    logger:logging.Logger,
+    logger:logging.Logger=default_logger,
     logging_steps:int=100)->float:
     """
     モデルの訓練を行う。
@@ -183,7 +183,7 @@ class BaselineModeler(object):
 
         self.classifier_model=None
         if bert_model_dir=="USE_DEFAULT":
-            logger.info("デフォルトのBERT Pre-trainedモデルを用いて分類器のパラメータを初期化します。")
+            logger.info("デフォルトのBERTモデルを用いて分類器のパラメータを初期化します。")
             self.classifier_model=BertForMultipleChoice.from_pretrained("cl-tohoku/bert-base-japanese-whole-word-masking")
         else:
             logger.info("{}からBERTモデルを読み込んで分類器のパラメータを初期化します。".format(bert_model_dir))
@@ -229,7 +229,7 @@ class BaselineModeler(object):
                 optimizer,
                 scheduler,
                 train_dataloader,
-                logger,
+                logger=logger,
                 logging_steps=logging_steps)
             logger.info("訓練時の損失平均値: {}".format(mean_loss))
 
