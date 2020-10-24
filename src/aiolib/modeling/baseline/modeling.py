@@ -109,10 +109,11 @@ def evaluate(classifier_model:BertForMultipleChoice,dataloader:DataLoader):
     """
     classifier_model.eval()
 
+    count_steps=0
+    total_loss=0
+
     preds=None
     correct_labels=None
-    count_steps=0
-    total_eval_loss=0
     for batch_idx,batch in tqdm(enumerate(dataloader),total=len(dataloader)):
         with torch.no_grad():
             batch = tuple(t for t in batch)
@@ -127,7 +128,7 @@ def evaluate(classifier_model:BertForMultipleChoice,dataloader:DataLoader):
             loss,logits=classifier_outputs[:2]
 
             count_steps+=1
-            total_eval_loss+=loss.item()
+            total_loss+=loss.item()
 
             if preds is None:
                 preds = logits.detach().cpu().numpy()
@@ -140,7 +141,7 @@ def evaluate(classifier_model:BertForMultipleChoice,dataloader:DataLoader):
 
     pred_labels = np.argmax(preds, axis=1)
     accuracy = simple_accuracy(pred_labels, correct_labels)
-    eval_loss=total_eval_loss/count_steps
+    eval_loss=total_loss/count_steps
 
     ret={
         "pred_labels":pred_labels,
