@@ -179,12 +179,14 @@ class BaselineModeler(object):
         self.logger=logger
 
     def __create_classifier_model(self,bert_model_dir:str):
+        logger=self.logger
+
         self.classifier_model=None
         if bert_model_dir=="USE_DEFAULT":
-            logger.info("デフォルトのBERT Pre-trainedモデルを読み込みます。")
+            logger.info("デフォルトのBERT Pre-trainedモデルを用いて分類器のパラメータを初期化します。")
             self.classifier_model=BertForMultipleChoice.from_pretrained("cl-tohoku/bert-base-japanese-whole-word-masking")
         else:
-            logger.info("{}からBERTモデルを読み込みます。".format(bert_model_dir))
+            logger.info("{}からBERTモデルを読み込んで分類器のパラメータを初期化します。".format(bert_model_dir))
             self.classifier_model=BertForMultipleChoice.from_pretrained(bert_model_dir)
         self.classifier_model.to(device)
 
