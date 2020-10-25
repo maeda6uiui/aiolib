@@ -112,7 +112,8 @@ class WikipediaImageFeatureExtractor(ImageFeatureExtractorBase):
             images=[]
             for file in files:
                 image=cv2.imread(file)
-                images.append(image)
+                if image is not None:
+                    images.append(image)
 
             features=get_region_features(images,self.predictor)
             
@@ -156,13 +157,12 @@ class ImageFeatureExtractor(ImageFeatureExtractorBase):
 
             pathname=os.path.join(directory,"*[!txt]")
             files=glob.glob(pathname)
-            if len(files)==0:
-                continue
 
             images=[]
             for file in files:
                 image=cv2.imread(file)
-                images.append(image)
+                if image is not None:
+                    images.append(image)
 
             features=get_region_features(images,self.predictor)
 
