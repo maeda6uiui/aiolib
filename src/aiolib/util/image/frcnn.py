@@ -131,15 +131,29 @@ class ImageFeatureExtractor(ImageFeatureExtractorBase):
         super().__init__(model_name)
         self.logger=logger
 
-    def extract(self,image_root_dir:str,save_dir:str):
+    def extract(
+        self,
+        image_root_dir:str,
+        save_dir:str,
+        index_lower_bound:int=-1,
+        index_upper_bound:int=-1):
         """
         画像の特徴量を抽出する。
         """
+        logger=self.logger
+
         os.makedirs(save_dir,exist_ok=True)
 
         pathname=os.path.join(image_root_dir,"*")
         directories=glob.glob(pathname)
-        for directory in tqdm(directories,total=len(directories)):
+        for idx,directory in enumerate(directories,total=len(directories)):
+            if idx<index_lower_bound:
+                continue
+            if index_upper_bound>=0 and idx>=index_upper_bound:
+                break
+
+            logger.info("{}".format(idx))
+
             pathname=os.path.join(directory,"*[!txt]")
             files=glob.glob(pathname)
 
