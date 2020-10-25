@@ -146,7 +146,7 @@ class ImageFeatureExtractor(ImageFeatureExtractorBase):
 
         pathname=os.path.join(image_root_dir,"*")
         directories=glob.glob(pathname)
-        for idx,directory in enumerate(directories,total=len(directories)):
+        for idx,directory in enumerate(directories):
             if idx<index_lower_bound:
                 continue
             if index_upper_bound>=0 and idx>=index_upper_bound:
