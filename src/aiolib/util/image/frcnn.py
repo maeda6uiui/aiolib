@@ -152,10 +152,12 @@ class ImageFeatureExtractor(ImageFeatureExtractorBase):
             if index_upper_bound>=0 and idx>=index_upper_bound:
                 break
 
-            logger.info("{}".format(idx))
+            logger.info("{}\t{}".format(idx,directory))
 
             pathname=os.path.join(directory,"*[!txt]")
             files=glob.glob(pathname)
+            if len(files)==0:
+                continue
 
             images=[]
             for file in files:
