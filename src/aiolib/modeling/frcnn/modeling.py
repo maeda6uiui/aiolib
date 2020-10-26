@@ -411,7 +411,7 @@ class FasterRCNNModeler(object):
         num_epochs:int=5,
         lr:float=2.5e-5,
         init_parameters=False,
-        max_im_embedding_dim:int=100,
+        max_im_embedding_length:int=100,
         result_save_dir:str="./OutputDir",
         logging_steps:int=100):
         logger=self.logger
@@ -450,7 +450,7 @@ class FasterRCNNModeler(object):
                 train_dataloader,
                 max_seq_length=512,
                 embedding_dim=self.embedding_dim,
-                max_im_embedding_length=max_im_embedding_dim,
+                max_im_embedding_length=max_im_embedding_length,
                 logger=logger,
                 logging_steps=logging_steps
             )
@@ -468,8 +468,8 @@ class FasterRCNNModeler(object):
                 self.im_features_dir,
                 self.dev_dataloader,
                 max_seq_length=512,
-                embedding_dim=768,
-                max_im_embedding_dim=max_im_embedding_dim
+                embedding_dim=self.embedding_dim,
+                max_im_embedding_length=max_im_embedding_length
             )
             accuracy=res["accuracy"]*100.0
             eval_loss=res["eval_loss"]
@@ -508,8 +508,8 @@ class FasterRCNNTester(object):
         logger.info("選択肢のリストを読み込みます。")
         self.test_options=load_options_list(os.path.join(test_input_dir,"options_list.txt"))
 
-        self.__create_bert_model(bert_model_dir)
-        self.__create_classifier_model(bert_model_dir)
+        self.__create_bert_model(bert_model_dir,logger)
+        self.__create_classifier_model(bert_model_dir,logger)
 
         self.im_features_dir=im_features_dir
 
@@ -518,9 +518,7 @@ class FasterRCNNTester(object):
 
         self.logger=logger
 
-    def __create_bert_model(self,bert_model_dir:str):
-        logger=self.logger
-
+    def __create_bert_model(self,bert_model_dir:str,logger:logging.Logger):
         self.bert_model=None
         if bert_model_dir=="USE_DEFAULT":
             logger.info("デフォルトのBERTモデルを読み込みます。")
@@ -533,9 +531,7 @@ class FasterRCNNTester(object):
             self.bert_model=BertModel.from_pretrained(bert_model_dir,config=config)
         self.bert_model.to(device)
 
-    def __create_classifier_model(self,bert_model_dir:str):
-        logger=self.logger
-
+    def __create_classifier_model(self,bert_model_dir:str,logger:logging.Logger):
         self.classifier_model=None
         if bert_model_dir=="USE_DEFAULT":
             logger.info("デフォルトのBERTモデルを用いて分類器のパラメータを初期化します。")
@@ -567,7 +563,7 @@ class FasterRCNNTester(object):
             self.im_features_dir,
             self.dev_dataloader,
             max_seq_length=512,
-            embedding_dim=768,
+            embedding_dim=self.embedding_dim,
             max_im_embedding_length=max_im_embedding_length
         )
         accuracy=res["accuracy"]*100.0
