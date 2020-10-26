@@ -4,7 +4,7 @@ import sys
 import os
 sys.path.append(os.path.abspath("../src/aiolib"))
 
-from modeling.baseline.modeling import FasterRCNNModeler
+from modeling.frcnn.modeling import FasterRCNNModeler
 
 logging_fmt="%(asctime)s %(levelname)s: %(message)s"
 logging.basicConfig(format=logging_fmt)
