@@ -9,6 +9,9 @@ import random
 import torch
 from tqdm import tqdm
 
+default_logger=logging.getLogger(__name__)
+default_logger.setLevel(level=logging.INFO)
+
 device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def set_seed(seed:int):
@@ -21,20 +24,30 @@ class Projector(object):
     """
     特徴量ベクトルの射影を行う。
     """
-    def __init__(self,src_dim,dst_dim,seed:int=42):
+    def __init__(self,src_dim,dst_dim,seed:int=42,logger:logging.Logger=default_logger):
         set_seed(seed)
+        
+        self.src_dim=src_dim
         self.fc=torch.nn.Linear(src_dim,dst_dim).to(device)
+
+        self.logger=logger
 
     def project(self,v:torch.Tensor)->torch.Tensor:
         return self.fc(v)
 
     def project_from_directory(self,src_dir:str,save_dir:str):
+        logger=self.logger
+
         os.makedirs(save_dir,exist_ok=True)
 
         files=os.listdir(src_dir)
         for file in tqdm(files):
             src_filepath=os.path.join(src_dir,file)
             src_vec=torch.load(src_filepath,map_location=device).to(device)
+            if src_vec.size(1)!=self.src_dim:
+                logger.error("入力ベクトルのサイズが不正です。 ファイル: {} サイズ: {}".format(file,src_vec.size()))
+                continue
+
             dst_vec=self.fc(src_vec)
 
             save_filepath=os.path.join(save_dir,file)
