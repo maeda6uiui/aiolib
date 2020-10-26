@@ -17,7 +17,8 @@ from transformers import (
 )
 from typing import List
 
-from .. import hashing
+sys.path.append("../../")
+from util import hashing
 
 default_logger=logging.getLogger(__name__)
 default_logger.setLevel(level=logging.INFO)
@@ -46,7 +47,7 @@ class Options(object):
     def get(self,index:int):
         return self.options[index]
 
-def load_options_list(list_filepath:str,logger:logging.Logger)->List[Options]:
+def load_options_list(list_filepath:str,logger:logging.Logger=default_logger)->List[Options]:
     logger.info("{}から選択肢のリストを読み込みます。".format(list_filepath))
 
     with open(list_filepath,"r",encoding="UTF-8") as r:
@@ -373,17 +374,15 @@ class FasterRCNNModeler(object):
         self.im_features_dir=im_features_dir
 
         self.bert_model_dir=bert_model_dir
-        self.__create_bert_model(bert_model_dir)
-        self.__create_classifier_model(bert_model_dir)
+        self.__create_bert_model(bert_model_dir,logger)
+        self.__create_classifier_model(bert_model_dir,logger)
 
         logger.info("シード: {}".format(seed))
         set_seed(seed)
 
         self.logger=logger
 
-    def __create_bert_model(self,bert_model_dir:str):
-        logger=self.logger
-
+    def __create_bert_model(self,bert_model_dir:str,logger:logging.Logger):
         self.bert_model=None
         if bert_model_dir=="USE_DEFAULT":
             logger.info("デフォルトのBERTモデルを読み込みます。")
@@ -396,9 +395,7 @@ class FasterRCNNModeler(object):
             self.bert_model=BertModel.from_pretrained(bert_model_dir,config=config)
         self.bert_model.to(device)
 
-    def __create_classifier_model(self,bert_model_dir:str):
-        logger=self.logger
-
+    def __create_classifier_model(self,bert_model_dir:str,logger:logging.Logger):
         self.classifier_model=None
         if bert_model_dir=="USE_DEFAULT":
             logger.info("デフォルトのBERTモデルを用いて分類器のパラメータを初期化します。")
