@@ -147,6 +147,7 @@ def create_inputs_embeds_and_token_type_ids(
     input_ids:torch.Tensor,
     indices:torch.Tensor,
     options:List[Options],
+    im_boxes_dir:str,
     im_features_dir:str,
     max_seq_length:int=512,
     embedding_dim:int=768,
@@ -173,11 +174,14 @@ def create_inputs_embeds_and_token_type_ids(
 
             option_embedding=None
             token_type_ids_tmp=None
+            im_boxes_filepath=os.path.join(im_boxes_dir,title_hash+".pt")
             im_features_filepath=os.path.join(im_features_dir,title_hash+".pt")
 
-            #画像の特徴量が存在する場合
+            #画像の特徴量が存在する場合 (矩形領域の座標データも存在するはず)
             if os.path.exists(im_features_filepath):
-                im_embedding=torch.load(im_features_filepath,map_location=device).to(device)
+                im_boxes=torch.load(im_boxes_filepath,map_location=device).to(device)
+                im_features=torch.load(im_features_filepath,map_location=device).to(device)
+                im_embedding=im_boxes+im_features
                 option_embedding,token_type_ids_tmp=create_option_embedding(text_embeddings[j],im_embedding)
             #画像の特徴量が存在しない場合
             else:
@@ -193,6 +197,7 @@ def train(
     bert_model:BertModel,
     classifier_model:BertForMultipleChoice,
     options:List[Options],
+    im_boxes_dir:str,
     im_features_dir:str,
     optimizer:torch.optim.Optimizer,
     scheduler:torch.optim.lr_scheduler.LambdaLR,
@@ -227,6 +232,7 @@ def train(
             bert_inputs["input_ids"],
             bert_inputs["indices"],
             options,
+            im_boxes_dir,
             im_features_dir,
             max_seq_length=max_seq_length,
             embedding_dim=embedding_dim,
@@ -270,6 +276,7 @@ def evaluate(
     bert_model:BertModel,
     classifier_model:BertForMultipleChoice,
     options:List[Options],
+    im_boxes_dir:str,
     im_features_dir:str,
     dataloader:DataLoader,
     max_seq_length:int=512,
@@ -306,6 +313,7 @@ def evaluate(
                 bert_inputs["input_ids"],
                 bert_inputs["indices"],
                 options,
+                im_boxes_dir,
                 im_features_dir,
                 max_seq_length=max_seq_length,
                 embedding_dim=embedding_dim,
@@ -357,6 +365,7 @@ class FasterRCNNModeler(object):
         train_input_dir:str,
         dev_input_dir:str,
         bert_model_dir:str,
+        im_boxes_dir:str,
         im_features_dir:str,
         seed:int=42,
         logger:logging.Logger=default_logger):
@@ -371,6 +380,7 @@ class FasterRCNNModeler(object):
         self.train_options=load_options_list(os.path.join(train_input_dir,"options_list.txt"))
         self.dev_options=load_options_list(os.path.join(dev_input_dir,"options_list.txt"))
 
+        self.im_boxes_dir=im_boxes_dir
         self.im_features_dir=im_features_dir
 
         self.bert_model_dir=bert_model_dir
@@ -444,6 +454,7 @@ class FasterRCNNModeler(object):
                 self.bert_model,
                 self.classifier_model,
                 self.train_options,
+                self.im_boxes_dir,
                 self.im_features_dir,
                 optimizer,
                 scheduler,
@@ -465,6 +476,7 @@ class FasterRCNNModeler(object):
                 self.bert_model,
                 self.classifier_model,
                 self.dev_options,
+                self.im_boxes_dir,
                 self.im_features_dir,
                 self.dev_dataloader,
                 max_seq_length=512,
@@ -498,6 +510,7 @@ class FasterRCNNTester(object):
         self,
         test_input_dir:str,
         bert_model_dir:str,
+        im_boxes_dir:str,
         im_features_dir:str,
         seed:int=42,
         logger:logging.Logger=default_logger):
@@ -511,6 +524,7 @@ class FasterRCNNTester(object):
         self.__create_bert_model(bert_model_dir,logger)
         self.__create_classifier_model(bert_model_dir,logger)
 
+        self.im_boxes_dir=im_boxes_dir
         self.im_features_dir=im_features_dir
 
         logger.info("シード: {}".format(seed))
@@ -560,6 +574,7 @@ class FasterRCNNTester(object):
             self.bert_model,
             self.classifier_model,
             self.dev_options,
+            self.im_boxes_dir,
             self.im_features_dir,
             self.dev_dataloader,
             max_seq_length=512,
