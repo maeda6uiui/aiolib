@@ -50,8 +50,9 @@ class Projector(object):
         features_save_dir:str):
         logger=self.logger
 
-        os.makedirs(boxes_save_dir,exist_ok=True)
-        os.makedirs(features_save_dir,exist_ok=True)
+        #保存先ディレクトリがすでに存在する場合には失敗する。
+        os.makedirs(boxes_save_dir)
+        os.makedirs(features_save_dir)
 
         #Boxes
         logger.info("RoI座標の射影を開始します。")
