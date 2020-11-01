@@ -24,7 +24,7 @@ default_logger.setLevel(level=logging.INFO)
 
 device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def get_region_features_single(raw_image:np.ndarray,predictor:DefaultPredictor)->torch.Tensor:
+def get_region_features_single(raw_image:np.ndarray,predictor:DefaultPredictor)->(torch.Tensor,torch.Tensor):
     """
     一つの画像から特徴量を取得する。
     """
@@ -44,33 +44,46 @@ def get_region_features_single(raw_image:np.ndarray,predictor:DefaultPredictor)-
         proposals,_=model.proposal_generator(images,features)
         instances,_=model.roi_heads(images,features,proposals)
         #RoI特徴量を生成する。
+        pred_boxes=[x.pred_boxes for x in instances]
         box_features=model.roi_heads.box_pooler(
-            [features[f] for f in features if f!="p6"],
-            [x.pred_boxes for x in instances]
+            [features[f] for f in features if f!="p6"],pred_boxes
         )
-        box_features=model.roi_heads.box_head(box_features) #FC層の出力
+        box_features=model.roi_heads.box_head(box_features) #FC層の出力 (RoIの数,特徴量の次元数)
 
-        return box_features #(RoIの数,特徴量の次元数)
+        boxes_tensor=torch.empty(0,4).to(device)    #RoIの座標
+        for boxes in pred_boxes:
+            boxes_tensor=torch.cat([boxes_tensor,boxes.tensor],dim=0)
 
-def get_region_features(raw_images:List[np.ndarray],predictor:DefaultPredictor)->torch.Tensor:
+        return boxes_tensor,box_features
+
+def get_region_features(raw_images:List[np.ndarray],predictor:DefaultPredictor)->(torch.Tensor,torch.Tensor):
     """
     複数の画像から特徴量を取得する。
+    物体が何も検出されなかった場合にはNoneが返される。
     """
+    boxes_list=[]
     features_list=[]
     for raw_image in raw_images:
-        features=get_region_features_single(raw_image,predictor)
+        boxes,features=get_region_features_single(raw_image,predictor)
+        boxes_list.append(boxes)
         features_list.append(features)
 
     #Tensorを結合する。
     if len(features_list)==0:
-        return torch.zeros(0,0).to(device)
+        return None,None
 
-    dimension=features_list[0].size(1)
-    ret=torch.empty(0,dimension).to(device)
-    for features in features_list:
-        ret=torch.cat([ret,features],dim=0)
+    #RoIの座標
+    ret_boxes=torch.empty(0,4).to(device)
+    for boxes in boxes_list:
+        ret_boxes=torch.cat([ret_boxes,boxes],dim=0)
     
-    return ret
+    #RoIの特徴量
+    dimension=features_list[0].size(1)
+    ret_features=torch.empty(0,dimension).to(device)
+    for features in features_list:
+        ret_features=torch.cat([ret_features,features],dim=0)
+    
+    return ret_boxes,ret_features
 
 class ImageFeatureExtractorBase(object):
     """
@@ -97,11 +110,14 @@ class WikipediaImageFeatureExtractor(ImageFeatureExtractorBase):
         self.articles_list=pd.read_csv(article_list_filepath,encoding="utf_8",sep="\t")
         self.logger=logger
 
-    def extract(self,image_root_dir:str,save_dir:str):
+    def extract(self,image_root_dir:str,boxes_save_dir:str,features_save_dir:str):
         """
         画像の特徴量を抽出する。
         """
-        os.makedirs(save_dir,exist_ok=True)
+        logger=self.logger
+
+        os.makedirs(boxes_save_dir,exist_ok=True)
+        os.makedirs(features_save_dir,exist_ok=True)
 
         for row in tqdm(self.articles_list.values):
             article_name,sec1,sec2=row[:3]
@@ -115,11 +131,17 @@ class WikipediaImageFeatureExtractor(ImageFeatureExtractorBase):
                 if image is not None:
                     images.append(image)
 
-            features=get_region_features(images,self.predictor)
+            boxes,features=get_region_features(images,self.predictor)
+            if boxes is None or features is None:
+                logger.warn("物体が一つも検出されませんでした。 記事名: {}".format(article_name))
+                continue
             
             title_hash=hashing.get_md5_hash(article_name)
-            save_filepath=os.path.join(save_dir,title_hash+".pt")
-            torch.save(features,save_filepath)
+            boxes_save_filepath=os.path.join(boxes_save_dir,title_hash+".pt")
+            features_save_filepath=os.path.join(features_save_dir,title_hash+".pt")
+
+            torch.save(boxes,boxes_save_filepath)
+            torch.save(features,features_save_filepath)
 
 class ImageFeatureExtractor(ImageFeatureExtractorBase):
     """
@@ -135,7 +157,8 @@ class ImageFeatureExtractor(ImageFeatureExtractorBase):
     def extract(
         self,
         image_root_dir:str,
-        save_dir:str,
+        boxes_save_dir:str,
+        features_save_dir:str,
         index_lower_bound:int=-1,
         index_upper_bound:int=-1):
         """
@@ -143,7 +166,8 @@ class ImageFeatureExtractor(ImageFeatureExtractorBase):
         """
         logger=self.logger
 
-        os.makedirs(save_dir,exist_ok=True)
+        os.makedirs(boxes_save_dir,exist_ok=True)
+        os.makedirs(features_save_dir,exist_ok=True)
 
         pathname=os.path.join(image_root_dir,"*")
         directories=glob.glob(pathname)
@@ -164,8 +188,14 @@ class ImageFeatureExtractor(ImageFeatureExtractorBase):
                 if image is not None:
                     images.append(image)
 
-            features=get_region_features(images,self.predictor)
+            boxes,features=get_region_features(images,self.predictor)
+            if boxes is None or features is None:
+                logger.warn("物体が一つも検出されませんでした。")
+                continue
 
             title_hash=os.path.basename(directory)
-            save_filepath=os.path.join(save_dir,title_hash+".pt")
-            torch.save(features,save_filepath)
+            boxes_save_filepath=os.path.join(boxes_save_dir,title_hash+".pt")
+            features_save_filepath=os.path.join(features_save_dir,title_hash+".pt")
+
+            torch.save(boxes,boxes_save_filepath)
+            torch.save(features,features_save_filepath)
