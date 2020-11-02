@@ -163,6 +163,11 @@ class BaselineModeler(object):
         bert_model_dir:str,
         seed:int=42,
         logger:logging.Logger=default_logger):
+        self.logger=logger
+
+        logger.info("シード: {}".format(seed))
+        set_seed(seed)
+
         logger.info("{}から訓練用データセットを作成します。".format(train_input_dir))
         self.train_dataset=create_dataset(train_input_dir,num_examples=-1,num_options=4)
 
@@ -172,11 +177,6 @@ class BaselineModeler(object):
 
         self.bert_model_dir=bert_model_dir
         self.__create_classifier_model(bert_model_dir,logger)
-
-        logger.info("シード: {}".format(seed))
-        set_seed(seed)
-
-        self.logger=logger
 
     def __create_classifier_model(self,bert_model_dir:str,logger:logging.Logger):
         self.classifier_model=None
@@ -266,6 +266,11 @@ class BaselineTester(object):
         bert_model_dir:str,
         seed:int=42,
         logger:logging.Logger=default_logger):
+        self.logger=logger
+
+        logger.info("シード: {}".format(seed))
+        set_seed(seed)
+
         logger.info("{}からテスト用データローダを作成します。".format(test_input_dir))
         test_dataset=create_dataset(test_input_dir,num_examples=-1,num_options=20)
         self.test_dataloader=DataLoader(test_dataset,batch_size=4,shuffle=False)
@@ -278,11 +283,6 @@ class BaselineTester(object):
             logger.info("{}からBERTモデルを読み込みます。".format(bert_model_dir))
             self.classifier_model=BertForMultipleChoice.from_pretrained(bert_model_dir)
         self.classifier_model.to(device)
-
-        logger.info("シード: {}".format(seed))
-        set_seed(seed)
-
-        self.logger=logger
 
     def test(
         self,

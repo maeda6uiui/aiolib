@@ -30,12 +30,12 @@ class Projector(object):
         dst_dim:int,
         seed:int=42,
         logger:logging.Logger=default_logger):
+        self.logger=logger
+
         set_seed(seed)
         
         self.fc_boxes=torch.nn.Linear(4,dst_dim).to(device)
         self.fc_features=torch.nn.Linear(features_src_dim,dst_dim).to(device)
-
-        self.logger=logger
 
     def project_boxes(self,v:torch.Tensor)->torch.Tensor:
         return self.fc_boxes(v)
