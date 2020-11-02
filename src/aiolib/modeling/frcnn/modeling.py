@@ -357,8 +357,7 @@ def evaluate(
 
 class FasterRCNNModeler(object):
     """
-    Faster R-CNNを使用して画像特徴量を抽出し、
-    それを使用して分類器モデルを訓練する。
+    Faster R-CNNで抽出された画像特徴量を使用してモデルを訓練する。
     """
     def __init__(
         self,
