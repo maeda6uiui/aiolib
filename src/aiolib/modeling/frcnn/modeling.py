@@ -266,7 +266,7 @@ def train(
 
     return total_loss/count_steps
 
-def simple_accuracy(pred_labels:np.ndarray, correct_labels:np.ndarray):
+def simple_accuracy(pred_labels:np.ndarray, correct_labels:np.ndarray)->float:
     """
     Accuracyを計算する。
     """
