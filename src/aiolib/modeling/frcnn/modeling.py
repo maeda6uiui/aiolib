@@ -380,6 +380,7 @@ class FasterRCNNModeler(object):
         self.train_options=load_options_list(os.path.join(train_input_dir,"options_list.txt"))
         self.dev_options=load_options_list(os.path.join(dev_input_dir,"options_list.txt"))
 
+        logger.info("im_boxes_dir: {}\tim_features_dir: {}".format(im_boxes_dir,im_features_dir))
         self.im_boxes_dir=im_boxes_dir
         self.im_features_dir=im_features_dir
 
@@ -524,6 +525,7 @@ class FasterRCNNTester(object):
         self.__create_bert_model(bert_model_dir,logger)
         self.__create_classifier_model(bert_model_dir,logger)
 
+        logger.info("im_boxes_dir: {}\tim_features_dir: {}".format(im_boxes_dir,im_features_dir))
         self.im_boxes_dir=im_boxes_dir
         self.im_features_dir=im_features_dir
 
