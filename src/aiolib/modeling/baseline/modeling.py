@@ -176,9 +176,11 @@ class BaselineModeler(object):
         self.dev_dataloader=DataLoader(dev_dataset,batch_size=4,shuffle=False)
 
         self.bert_model_dir=bert_model_dir
-        self.__create_classifier_model(bert_model_dir,logger)
+        self.__create_classifier_model(bert_model_dir)
 
-    def __create_classifier_model(self,bert_model_dir:str,logger:logging.Logger):
+    def __create_classifier_model(self,bert_model_dir:str):
+        logger=self.logger
+
         self.classifier_model=None
         if bert_model_dir=="USE_DEFAULT":
             logger.info("デフォルトのBERTモデルを用いて分類器のパラメータを初期化します。")

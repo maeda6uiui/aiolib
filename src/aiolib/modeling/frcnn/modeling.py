@@ -389,10 +389,12 @@ class FasterRCNNModeler(object):
         self.im_features_dir=im_features_dir
 
         self.bert_model_dir=bert_model_dir
-        self.__create_bert_model(bert_model_dir,logger)
-        self.__create_classifier_model(bert_model_dir,logger)
+        self.__create_bert_model(bert_model_dir)
+        self.__create_classifier_model(bert_model_dir)
 
-    def __create_bert_model(self,bert_model_dir:str,logger:logging.Logger):
+    def __create_bert_model(self,bert_model_dir:str):
+        logger=self.logger
+
         self.bert_model=None
         if bert_model_dir=="USE_DEFAULT":
             logger.info("デフォルトのBERTモデルを読み込みます。")
@@ -405,7 +407,9 @@ class FasterRCNNModeler(object):
             self.bert_model=BertModel.from_pretrained(bert_model_dir,config=config)
         self.bert_model.to(device)
 
-    def __create_classifier_model(self,bert_model_dir:str,logger:logging.Logger):
+    def __create_classifier_model(self,bert_model_dir:str):
+        logger=self.logger
+
         self.classifier_model=None
         if bert_model_dir=="USE_DEFAULT":
             logger.info("デフォルトのBERTモデルを用いて分類器のパラメータを初期化します。")
@@ -526,14 +530,16 @@ class FasterRCNNTester(object):
         logger.info("選択肢のリストを読み込みます。")
         self.test_options=load_options_list(os.path.join(test_input_dir,"options_list.txt"))
 
-        self.__create_bert_model(bert_model_dir,logger)
-        self.__create_classifier_model(bert_model_dir,logger)
+        self.__create_bert_model(bert_model_dir)
+        self.__create_classifier_model(bert_model_dir)
 
         logger.info("im_boxes_dir: {}\tim_features_dir: {}".format(im_boxes_dir,im_features_dir))
         self.im_boxes_dir=im_boxes_dir
         self.im_features_dir=im_features_dir
 
-    def __create_bert_model(self,bert_model_dir:str,logger:logging.Logger):
+    def __create_bert_model(self,bert_model_dir:str):
+        logger=self.logger
+
         self.bert_model=None
         if bert_model_dir=="USE_DEFAULT":
             logger.info("デフォルトのBERTモデルを読み込みます。")
@@ -546,7 +552,9 @@ class FasterRCNNTester(object):
             self.bert_model=BertModel.from_pretrained(bert_model_dir,config=config)
         self.bert_model.to(device)
 
-    def __create_classifier_model(self,bert_model_dir:str,logger:logging.Logger):
+    def __create_classifier_model(self,bert_model_dir:str):
+        logger=self.logger
+
         self.classifier_model=None
         if bert_model_dir=="USE_DEFAULT":
             logger.info("デフォルトのBERTモデルを用いて分類器のパラメータを初期化します。")
