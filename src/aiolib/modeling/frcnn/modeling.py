@@ -5,8 +5,7 @@ import random
 import torch
 import torch.nn as nn
 import numpy as np
-from tqdm import tqdm
-from torch.utils.data import Dataset,DataLoader,TensorDataset
+from torch.utils.data import DataLoader,TensorDataset
 from transformers import (
     BertConfig,
     BertModel,
@@ -116,13 +115,13 @@ def create_text_embeddings(
         
         with torch.no_grad():
             outputs=bert_model(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                token_type_ids=token_type_ids
+                input_ids=op_input_ids,
+                attention_mask=op_attention_mask,
+                token_type_ids=op_token_type_ids
             )
             embeddings=bert_model.get_input_embeddings()
 
-            ret[i]=embeddings(input_ids)
+            ret[i]=embeddings(op_input_ids)
 
     return ret
 
@@ -197,8 +196,7 @@ def create_inputs_embeds(
             article_name=ops.get(j)
             title_hash=hashing.get_md5_hash(article_name)
 
-            option_embedding=None
-            token_type_ids_tmp=None
+            option_embeddings=None
             im_boxes_filepath=os.path.join(im_boxes_dir,title_hash+".pt")
             im_features_filepath=os.path.join(im_features_dir,title_hash+".pt")
 
