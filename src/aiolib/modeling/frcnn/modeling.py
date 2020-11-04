@@ -171,8 +171,8 @@ def create_inputs_embeds(
     input_ids:torch.Tensor,
     indices:torch.Tensor,
     options:List[Options],
-    im_boxes_dir:str,
-    im_features_dir:str,
+    roi_boxes_dir:str,
+    roi_features_dir:str,
     max_seq_length:int=512,
     embedding_dim:int=768,
     max_num_rois:int=100)->torch.Tensor:
@@ -197,8 +197,8 @@ def create_inputs_embeds(
             title_hash=hashing.get_md5_hash(article_name)
 
             option_embeddings=None
-            im_boxes_filepath=os.path.join(im_boxes_dir,title_hash+".pt")
-            im_features_filepath=os.path.join(im_features_dir,title_hash+".pt")
+            im_boxes_filepath=os.path.join(roi_boxes_dir,title_hash+".pt")
+            im_features_filepath=os.path.join(roi_features_dir,title_hash+".pt")
 
             #画像の特徴量が存在する場合 (矩形領域の座標データも存在するはず)
             if os.path.exists(im_features_filepath):
@@ -228,8 +228,8 @@ def train(
     bert_model:BertModel,
     classifier_model:BertForMultipleChoice,
     options:List[Options],
-    im_boxes_dir:str,
-    im_features_dir:str,
+    roi_boxes_dir:str,
+    roi_features_dir:str,
     optimizer:torch.optim.Optimizer,
     scheduler:torch.optim.lr_scheduler.LambdaLR,
     dataloader:DataLoader,
@@ -263,8 +263,8 @@ def train(
             bert_inputs["input_ids"],
             bert_inputs["indices"],
             options,
-            im_boxes_dir,
-            im_features_dir,
+            roi_boxes_dir,
+            roi_features_dir,
             max_seq_length=max_seq_length,
             embedding_dim=embedding_dim,
             max_num_rois=max_num_rois
@@ -307,8 +307,8 @@ def evaluate(
     bert_model:BertModel,
     classifier_model:BertForMultipleChoice,
     options:List[Options],
-    im_boxes_dir:str,
-    im_features_dir:str,
+    roi_boxes_dir:str,
+    roi_features_dir:str,
     dataloader:DataLoader,
     max_seq_length:int=512,
     embedding_dim:int=768,
@@ -344,8 +344,8 @@ def evaluate(
                 bert_inputs["input_ids"],
                 bert_inputs["indices"],
                 options,
-                im_boxes_dir,
-                im_features_dir,
+                roi_boxes_dir,
+                roi_features_dir,
                 max_seq_length=max_seq_length,
                 embedding_dim=embedding_dim,
                 max_num_rois=max_num_rois
@@ -395,8 +395,8 @@ class FasterRCNNModeler(object):
         train_input_dir:str,
         dev_input_dir:str,
         bert_model_dir:str,
-        im_boxes_dir:str,
-        im_features_dir:str,
+        roi_boxes_dir:str,
+        roi_features_dir:str,
         seed:int=42,
         logger:logging.Logger=default_logger):
         self.logger=logger
@@ -415,9 +415,9 @@ class FasterRCNNModeler(object):
         self.train_options=load_options_list(os.path.join(train_input_dir,"options_list.txt"))
         self.dev_options=load_options_list(os.path.join(dev_input_dir,"options_list.txt"))
 
-        logger.info("im_boxes_dir: {}\tim_features_dir: {}".format(im_boxes_dir,im_features_dir))
-        self.im_boxes_dir=im_boxes_dir
-        self.im_features_dir=im_features_dir
+        logger.info("roi_boxes_dir: {}\troi_features_dir: {}".format(roi_boxes_dir,roi_features_dir))
+        self.roi_boxes_dir=roi_boxes_dir
+        self.roi_features_dir=roi_features_dir
 
         self.bert_model_dir=bert_model_dir
         self.__create_bert_model(bert_model_dir)
@@ -489,8 +489,8 @@ class FasterRCNNModeler(object):
                 self.bert_model,
                 self.classifier_model,
                 self.train_options,
-                self.im_boxes_dir,
-                self.im_features_dir,
+                self.roi_boxes_dir,
+                self.roi_features_dir,
                 optimizer,
                 scheduler,
                 train_dataloader,
@@ -511,8 +511,8 @@ class FasterRCNNModeler(object):
                 self.bert_model,
                 self.classifier_model,
                 self.dev_options,
-                self.im_boxes_dir,
-                self.im_features_dir,
+                self.roi_boxes_dir,
+                self.roi_features_dir,
                 self.dev_dataloader,
                 max_seq_length=512,
                 embedding_dim=self.embedding_dim,
@@ -545,8 +545,8 @@ class FasterRCNNTester(object):
         self,
         test_input_dir:str,
         bert_model_dir:str,
-        im_boxes_dir:str,
-        im_features_dir:str,
+        roi_boxes_dir:str,
+        roi_features_dir:str,
         seed:int=42,
         logger:logging.Logger=default_logger):
         self.logger=logger
@@ -564,9 +564,9 @@ class FasterRCNNTester(object):
         self.__create_bert_model(bert_model_dir)
         self.__create_classifier_model(bert_model_dir)
 
-        logger.info("im_boxes_dir: {}\tim_features_dir: {}".format(im_boxes_dir,im_features_dir))
-        self.im_boxes_dir=im_boxes_dir
-        self.im_features_dir=im_features_dir
+        logger.info("roi_boxes_dir: {}\troi_features_dir: {}".format(roi_boxes_dir,roi_features_dir))
+        self.roi_boxes_dir=roi_boxes_dir
+        self.roi_features_dir=roi_features_dir
 
     def __create_bert_model(self,bert_model_dir:str):
         logger=self.logger
@@ -614,8 +614,8 @@ class FasterRCNNTester(object):
             self.bert_model,
             self.classifier_model,
             self.dev_options,
-            self.im_boxes_dir,
-            self.im_features_dir,
+            self.roi_boxes_dir,
+            self.roi_features_dir,
             self.dev_dataloader,
             max_seq_length=512,
             embedding_dim=self.embedding_dim,
