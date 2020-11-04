@@ -139,7 +139,7 @@ def process_roi_embeddings(
 
     position_embeddings=bert_model.embeddings.position_embeddings
     token_type_embeddings=bert_model.embeddings.token_type_embeddings
-    layer_norm=bert_model.embeddings.layer_norm
+    layer_norm=bert_model.embeddings.LayerNorm
     dropout=bert_model.embeddings.dropout
 
     num_rois=roi_boxes_embeddings.size(0)
