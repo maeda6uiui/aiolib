@@ -14,7 +14,7 @@ from transformers import (
     AdamW,
     get_linear_schedule_with_warmup,
 )
-from typing import List
+from typing import List,Tuple
 
 sys.path.append("../../")
 from util import hashing
@@ -132,7 +132,7 @@ def process_roi_embeddings(
     roi_features_embeddings:torch.Tensor,
     max_seq_length:int=512,
     embedding_dim:int=768,
-    max_num_rois:int=100)->(torch.Tensor,int):
+    max_num_rois:int=100)->Tuple[torch.Tensor,int]:
     """
     RoIのEmbeddingを作成する。
     """
@@ -152,7 +152,7 @@ def process_roi_embeddings(
     position_ids=torch.empty(max_seq_length,dtype=torch.long).to(device)
     for i in range(max_seq_length):
         position_ids[i]=i
-    position_ids=posion_ids[max_seq_length-num_rois:]
+    position_ids=position_ids[max_seq_length-num_rois:]
 
     #RoIのToken Type IDは1
     token_type_ids=torch.ones(max_seq_length,dtype=torch.long).to(device)
@@ -162,7 +162,7 @@ def process_roi_embeddings(
     v_token_type_embeddings=token_type_embeddings(token_type_ids)
 
     embeddings=roi_boxes_embeddings+roi_features_embeddings+v_position_embeddings+v_token_type_embeddings
-    embeddings=LayerNorm(embeddings)
+    embeddings=layer_norm(embeddings)
     embeddings=dropout(embeddings)
 
     return embeddings,num_rois
