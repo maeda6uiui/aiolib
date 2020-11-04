@@ -16,7 +16,7 @@ from transformers import(
 default_logger=logging.getLogger(__name__)
 default_logger.setLevel(level=logging.INFO)
 
-device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
+default_device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def create_dataset(input_dir:str,num_examples:int=-1,num_options:int=4)->TensorDataset:
     """
@@ -44,6 +44,7 @@ def train(
     optimizer:torch.optim.Optimizer,
     scheduler:torch.optim.lr_scheduler.LambdaLR,
     dataloader:TensorDataset,
+    device:torch.device=default_device,
     logger:logging.Logger=default_logger,
     logging_steps:int=100)->float:
     """
@@ -88,7 +89,10 @@ def simple_accuracy(pred_labels:np.ndarray, correct_labels:np.ndarray)->float:
     """
     return (pred_labels == correct_labels).mean()
 
-def evaluate(classifier_model:BertForMultipleChoice,dataloader:DataLoader):
+def evaluate(
+    classifier_model:BertForMultipleChoice,
+    dataloader:DataLoader,
+    device:torch.device=default_device):
     """
     モデルの評価を行う。
     結果やラベルはDict形式で返される。
@@ -160,6 +164,8 @@ class BaselineModeler(object):
         self.bert_model_dir=bert_model_dir
         self.__create_classifier_model(bert_model_dir)
 
+        self.device=torch.device("cpu") #デフォルトではCPU
+
     def __create_classifier_model(self,bert_model_dir:str):
         logger=self.logger
 
@@ -170,6 +176,9 @@ class BaselineModeler(object):
         else:
             logger.info("{}からBERTモデルを読み込んで分類器のパラメータを初期化します。".format(bert_model_dir))
             self.classifier_model=BertForMultipleChoice.from_pretrained(bert_model_dir)
+
+    def to(self,device:torch.device):
+        self.device=device
         self.classifier_model.to(device)
 
     def train_and_eval(
@@ -211,6 +220,7 @@ class BaselineModeler(object):
                 optimizer,
                 scheduler,
                 train_dataloader,
+                device=self.device,
                 logger=logger,
                 logging_steps=logging_steps)
             logger.info("訓練時の損失平均値: {}".format(mean_loss))
@@ -220,7 +230,7 @@ class BaselineModeler(object):
             torch.save(self.classifier_model.state_dict(),checkpoint_filepath)
 
             #評価
-            res=evaluate(self.classifier_model,self.dev_dataloader)
+            res=evaluate(self.classifier_model,self.dev_dataloader,device=self.device)
             accuracy=res["accuracy"]*100.0
             eval_loss=res["eval_loss"]
             logger.info("正解率: {} %".format(accuracy))
@@ -262,6 +272,11 @@ class BaselineTester(object):
         else:
             logger.info("{}からBERTモデルを読み込みます。".format(bert_model_dir))
             self.classifier_model=BertForMultipleChoice.from_pretrained(bert_model_dir)
+        
+        self.device=torch.device("cpu") #デフォルトではCPU
+
+    def to(self,device:torch.device):
+        self.device=device
         self.classifier_model.to(device)
 
     def test(
@@ -274,11 +289,11 @@ class BaselineTester(object):
 
         #モデルのパラメータを読み込む。
         logger.info("{}からモデルパラメータを読み込みます。".format(model_filepath))
-        parameters=torch.load(model_filepath,map_location=device)
+        parameters=torch.load(model_filepath,map_location=self.device).to(self.device)
         self.classifier_model.load_state_dict(parameters)
 
         #評価
-        res=evaluate(self.classifier_model,self.test_dataloader)
+        res=evaluate(self.classifier_model,self.test_dataloader,device=self.device)
         accuracy=res["accuracy"]*100.0
         eval_loss=res["eval_loss"]
         logger.info("正解率: {} %".format(accuracy))
