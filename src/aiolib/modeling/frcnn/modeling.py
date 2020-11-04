@@ -119,25 +119,25 @@ def create_text_embeddings(
 
 def create_option_embedding(
     text_embedding:torch.Tensor,
-    im_embedding:torch.Tensor,
+    roi_embedding:torch.Tensor,
     max_seq_length:int=512,
-    max_im_embedding_length:int=100)->(torch.Tensor,torch.Tensor):
+    max_roi_embedding_length:int=100)->(torch.Tensor,torch.Tensor):
     """
-    テキストEmbeddingと画像Embeddingを合わせて選択肢全体のEmbeddingを作成する。
+    テキストEmbeddingとRoI Embeddingを合わせて選択肢全体のEmbeddingを作成する。
     返り値はそれぞれoption_embeddingとtoken_type_ids
     """
-    im_embedding_length=im_embedding.size(0)
-    #画像Embeddingが長すぎる場合には切り捨てる。
-    if im_embedding_length>max_im_embedding_length:
-        im_embedding=im_embedding[:max_im_embedding_length]
-        im_embedding_length=max_im_embedding_length
-    text_embedding=text_embedding[:max_seq_length-im_embedding_length]
+    roi_embedding_length=roi_embedding.size(0)
+    #RoI Embeddingが長すぎる場合には切り捨てる。
+    if roi_embedding_length>max_roi_embedding_length:
+        roi_embedding=roi_embedding[:max_roi_embedding_length]
+        roi_embedding_length=max_roi_embedding_length
+    text_embedding=text_embedding[:max_seq_length-roi_embedding_length]
     text_embedding[-1]=3    #[SEP]
-    option_embedding=torch.cat([text_embedding,im_embedding],dim=0)
+    option_embedding=torch.cat([text_embedding,roi_embedding],dim=0)
 
     #Token Type IDはテキスト部分が0、画像部分が1となるようにする。
     token_type_ids=torch.zeros(max_seq_length,dtype=torch.long).to(device)
-    for i in range(max_seq_length-im_embedding_length,max_seq_length):
+    for i in range(max_seq_length-roi_embedding_length,max_seq_length):
         token_type_ids[i]=1
 
     return option_embedding,token_type_ids
@@ -151,7 +151,7 @@ def create_inputs_embeds_and_token_type_ids(
     im_features_dir:str,
     max_seq_length:int=512,
     embedding_dim:int=768,
-    max_im_embedding_length:int=100)->(torch.Tensor,torch.Tensor):
+    max_roi_embedding_length:int=100)->(torch.Tensor,torch.Tensor):
     """
     BertForMultipleChoiceに入力するEmbeddingとToken Type IDを作成する。
     """
@@ -181,8 +181,8 @@ def create_inputs_embeds_and_token_type_ids(
             if os.path.exists(im_features_filepath):
                 im_boxes=torch.load(im_boxes_filepath,map_location=device).to(device)
                 im_features=torch.load(im_features_filepath,map_location=device).to(device)
-                im_embedding=im_boxes+im_features
-                option_embedding,token_type_ids_tmp=create_option_embedding(text_embeddings[j],im_embedding)
+                roi_embedding=im_boxes+im_features
+                option_embedding,token_type_ids_tmp=create_option_embedding(text_embeddings[j],roi_embedding)
             #画像の特徴量が存在しない場合
             else:
                 option_embedding=text_embeddings[j]
@@ -204,7 +204,7 @@ def train(
     dataloader:DataLoader,
     max_seq_length:int=512,
     embedding_dim:int=768,
-    max_im_embedding_length:int=100,
+    max_roi_embedding_length:int=100,
     logger:logging.Logger=default_logger,
     logging_steps:int=100)->float:
     """
@@ -236,7 +236,7 @@ def train(
             im_features_dir,
             max_seq_length=max_seq_length,
             embedding_dim=embedding_dim,
-            max_im_embedding_length=max_im_embedding_length
+            max_roi_embedding_length=max_roi_embedding_length
         )
 
         classifier_inputs={
@@ -281,7 +281,7 @@ def evaluate(
     dataloader:DataLoader,
     max_seq_length:int=512,
     embedding_dim:int=768,
-    max_im_embedding_length:int=100):
+    max_roi_embedding_length:int=100):
     """
     モデルの評価を行う。
     結果やラベルはDict形式で返される。
@@ -317,7 +317,7 @@ def evaluate(
                 im_features_dir,
                 max_seq_length=max_seq_length,
                 embedding_dim=embedding_dim,
-                max_im_embedding_length=max_im_embedding_length
+                max_roi_embedding_length=max_roi_embedding_length
             )
 
             classifier_inputs={
@@ -425,7 +425,7 @@ class FasterRCNNModeler(object):
         num_epochs:int=5,
         lr:float=2.5e-5,
         init_parameters=False,
-        max_im_embedding_length:int=100,
+        max_roi_embedding_length:int=100,
         result_save_dir:str="./OutputDir",
         logging_steps:int=100):
         logger=self.logger
@@ -465,7 +465,7 @@ class FasterRCNNModeler(object):
                 train_dataloader,
                 max_seq_length=512,
                 embedding_dim=self.embedding_dim,
-                max_im_embedding_length=max_im_embedding_length,
+                max_roi_embedding_length=max_roi_embedding_length,
                 logger=logger,
                 logging_steps=logging_steps
             )
@@ -485,7 +485,7 @@ class FasterRCNNModeler(object):
                 self.dev_dataloader,
                 max_seq_length=512,
                 embedding_dim=self.embedding_dim,
-                max_im_embedding_length=max_im_embedding_length
+                max_roi_embedding_length=max_roi_embedding_length
             )
             accuracy=res["accuracy"]*100.0
             eval_loss=res["eval_loss"]
@@ -569,7 +569,7 @@ class FasterRCNNTester(object):
         model_filepath:str,
         result_filepath:str,
         labels_filepath:str,
-        max_im_embedding_length:int=100):
+        max_roi_embedding_length:int=100):
         logger=self.logger
         logger.info("モデルのテストを開始します。")
 
@@ -588,7 +588,7 @@ class FasterRCNNTester(object):
             self.dev_dataloader,
             max_seq_length=512,
             embedding_dim=self.embedding_dim,
-            max_im_embedding_length=max_im_embedding_length
+            max_roi_embedding_length=max_roi_embedding_length
         )
         accuracy=res["accuracy"]*100.0
         eval_loss=res["eval_loss"]
