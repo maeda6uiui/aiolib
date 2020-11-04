@@ -1,6 +1,5 @@
 import logging
 import os
-import random
 import torch
 import numpy as np
 from tqdm import tqdm
@@ -18,15 +17,6 @@ default_logger=logging.getLogger(__name__)
 default_logger.setLevel(level=logging.INFO)
 
 device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-def set_seed(seed:int):
-    """
-    乱数のシードを設定する。
-    """
-    random.seed(seed)
-    np.random.seed(seed)
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
 
 def create_dataset(input_dir:str,num_examples:int=-1,num_options:int=4)->TensorDataset:
     """
@@ -157,12 +147,8 @@ class BaselineModeler(object):
         train_input_dir:str,
         dev_input_dir:str,
         bert_model_dir:str,
-        seed:int=42,
         logger:logging.Logger=default_logger):
         self.logger=logger
-
-        logger.info("シード: {}".format(seed))
-        set_seed(seed)
 
         logger.info("{}から訓練用データセットを作成します。".format(train_input_dir))
         self.train_dataset=create_dataset(train_input_dir,num_examples=-1,num_options=4)
@@ -262,12 +248,8 @@ class BaselineTester(object):
         self,
         test_input_dir:str,
         bert_model_dir:str,
-        seed:int=42,
         logger:logging.Logger=default_logger):
         self.logger=logger
-
-        logger.info("シード: {}".format(seed))
-        set_seed(seed)
 
         logger.info("{}からテスト用データローダを作成します。".format(test_input_dir))
         test_dataset=create_dataset(test_input_dir,num_examples=-1,num_options=20)
