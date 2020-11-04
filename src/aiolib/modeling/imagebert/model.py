@@ -53,7 +53,7 @@ class ImageBertModel(BertModel):
 
         self.init_weights()
 
-    def to(self,device:torch.device):
+    def to(self,device:torch.Device):
         self.device=device
 
         super().to(device)
