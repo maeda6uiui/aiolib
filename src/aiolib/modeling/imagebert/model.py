@@ -3,7 +3,9 @@ import torch
 import torch.nn as nn
 from transformers import(
     BertConfig,
-    BertModel
+    BertModel,
+    BertPreTrainedModel,
+    MultipleChoiceModelOutput
 )
 
 default_logger=logging.getLogger(__name__)
@@ -49,6 +51,8 @@ class ImageBertModel(BertModel):
 
         self.device=torch.device("cpu") #デフォルトではCPU
 
+        self.init_weights()
+
     def to(self,device:torch.device):
         self.device=device
 
@@ -61,39 +65,6 @@ class ImageBertModel(BertModel):
         self.text_token_type_ids.to(device)
         self.roi_token_type_ids.to(device)
         self.wh_tensor.to(device)
-
-    def __trim_roi_tensors(self,tensor:torch.Tensor)->torch.Tensor:
-        """
-        各バッチで含まれるRoIの数が異なると処理が面倒なので、max_num_roisに合わせる。
-        もしもmax_num_roisよりも多い場合には切り捨て、
-        max_num_roisよりも少ない場合には0ベクトルで埋める。
-
-        入力Tensorのサイズ
-        roi_boxes: (N,num_rois,x)
-
-        出力Tensorのサイズ
-        (N,max_num_rois,x)
-        """
-        batch_size=tensor.size(0)
-        x=tensor.size(-1)
-        
-        ret=torch.empty(batch_size,self.max_num_rois,x).to(self.device)
-
-        for i in range(batch_size):
-            roi_boxes_tmp=tensor[i]
-            num_rois=roi_boxes_tmp.size(0)
-
-            #RoIの数が制限よりも多い場合はTruncateする。
-            if num_rois>self.max_num_rois:
-                roi_boxes_tmp=roi_boxes_tmp[:self.max_num_rois]
-            #RoIの数が制限よりも少ない場合は0ベクトルで埋める。
-            elif num_rois<self.max_num_rois:
-                zeros=torch.zeros(self.max_num_rois-num_rois,x).to(self.device)
-                roi_boxes_tmp=torch.cat([roi_boxes_tmp,zeros],dim=0)
-
-            ret[i]=roi_boxes_tmp
-
-        return ret
 
     def __create_embeddings(
         self,
@@ -117,14 +88,11 @@ class ImageBertModel(BertModel):
         v_word_embeddings=word_embeddings(input_ids)
 
         #=== RoIのEmbeddingを作成する。 ===
-        roi_features=self.__trim_roi_tensors(roi_features)  #(N,max_num_rois,roi_features_dim)
         roi_features=roi_features.view(-1,self.roi_features_dim)    #(N*max_num_rois,roi_features_dim)
         roi_features_embeddings=self.fc_roi_features(roi_features)  #(N*max_num_rois,hidden_size)
         roi_features_embeddings=roi_features_embeddings.view(-1,self.max_num_rois,self.roi_features_dim)
 
         #RoIの座標から(RoIの)Position Embeddingを作成する。
-        roi_boxes=self.__trim_roi_tensors(roi_boxes)    #(N,max_num_rois,4)
-
         roi_position_embeddings=torch.empty(self.max_num_rois,5).to(self.device)
         for i in range(self.max_num_rois):
             x_tl=roi_boxes[i,0]
@@ -162,15 +130,19 @@ class ImageBertModel(BertModel):
     def forward(
         self,
         input_ids:torch.Tensor, #(N,BERT_MAX_SEQ_LENGTH)
-        roi_boxes:torch.Tensor,    #(N,number of RoIs,dimension of features)
+        roi_boxes:torch.Tensor,    #(N,max_num_rois,features_dim)
         roi_features:torch.Tensor,
         output_hidden_states:bool=None,
         return_dict:bool=None):
+        """
+        RoIのTensorはTrim済みのものを入力すること
+        """
         embeddings=self.__create_embeddings(input_ids,roi_boxes,roi_features)
 
         #Todo: とりあえずattention_maskはすべて1
         attention_mask=torch.ones(input_ids.size(0),BERT_MAX_SEQ_LENGTH,dtype=torch.long).to(self.device)
 
+        return_dict=return_dict if return_dict is not None else self.config.use_return_dict
         ret=super().forward(
             inputs_embeds=embeddings,
             attention_mask=attention_mask,
@@ -178,3 +150,55 @@ class ImageBertModel(BertModel):
             return_dict=return_dict)
 
         return ret
+
+class ImageBertForMultipleChoice(BertPreTrainedModel):
+    def __init__(
+        self,
+        config:BertConfig):
+        super().__init__(config)
+
+        self.imbert=ImageBertModel(config)
+        self.dropout=nn.Dropout(config.hidden_dropout_prob)
+        self.classifier=nn.Linear(config.hidden_size,1)
+
+        self.init_weights()
+
+    def forward(
+        self,
+        input_ids:torch.Tensor, #(N,num_choices,BERT_MAX_SEQ_LENGTH)
+        roi_boxes:torch.Tensor,    #(N,num_choices,max_num_rois,features_dim)
+        roi_features:torch.Tensor,
+        labels:torch.Tensor,
+        output_hidden_states:bool=None,
+        return_dict:bool=None):
+        num_choices=input_ids.size(1)
+        input_ids=input_ids.view(-1,input_ids.size(-1)) #(N*num_choices,BERT_MAX_SEQ_LENGTH)
+        roi_boxes=roi_boxes.view(-1,roi_boxes.size(-1)) #(N*num_choices,max_num_rois,features_dim)
+
+        outputs=self.imbert(
+            input_ids,
+            roi_boxes,
+            roi_features,
+            output_hidden_states=output_hidden_states,
+            return_dict=return_dict
+        )
+
+        pooled_output=outputs[1]
+
+        pooled_output=self.dropout(pooled_output)
+        logits=self.classifier(pooled_output)
+        reshaped_logits=logits.view(-1,num_choices)
+
+        criterion=nn.CrossEntropyLoss()
+        loss=criterion(reshaped_logits,labels)
+
+        if not return_dict:
+            output=(reshaped_logits,)+outputs[2:]
+            return ((loss,)+output) if loss is not None else output
+
+        return MultipleChoiceModelOutput(
+            loss=loss,
+            logits=reshaped_logits,
+            hidden_states=outputs.hidden_states,
+            attentions=outputs.attentions,
+        )
