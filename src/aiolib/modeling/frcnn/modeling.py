@@ -1,4 +1,3 @@
-import argparse
 import logging
 import os
 import sys
@@ -95,7 +94,7 @@ def create_dataset(input_dir:str,num_examples:int=-1,num_options:int=4)->TensorD
 
 def create_text_embeddings(
     bert_model:BertModel,
-    options_ids:torch.Tensor,
+    input_ids:torch.Tensor,   #(num_options,max_seq_length,embedding_dim)
     max_seq_length:int=512,
     embedding_dim:int=768)->torch.Tensor:
     """
@@ -103,46 +102,72 @@ def create_text_embeddings(
     返されるTensorのサイズは(num_options,max_seq_length,embedding_dim)
     """
     bert_model.eval()
-    num_options=options_ids.size(0)
+    num_options=input_ids.size(0)
     ret=torch.empty(num_options,max_seq_length,embedding_dim).to(device)
 
+    attention_mask=torch.ones(num_options,max_seq_length,dtype=torch.long).to(device)
+    #テキストのToken Type IDは0
+    token_type_ids=torch.zeros(num_options,max_seq_length,dtype=torch.long).to(device)
+
     for i in range(num_options):
-        input_ids=options_ids[i].unsqueeze(0).to(device)
+        op_input_ids=input_ids[i].unsqueeze(0).to(device)
+        op_attention_mask=attention_mask[i].unsqueeze(0).to(device)
+        op_token_type_ids=token_type_ids[i].unsqueeze(0).to(device)
         
         with torch.no_grad():
-            outputs=bert_model(input_ids)
+            outputs=bert_model(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                token_type_ids=token_type_ids
+            )
             embeddings=bert_model.get_input_embeddings()
 
             ret[i]=embeddings(input_ids)
 
     return ret
 
-def create_option_embedding(
-    text_embedding:torch.Tensor,
-    roi_embedding:torch.Tensor,
+def process_roi_embeddings(
+    bert_model:BertModel,
+    roi_boxes_embeddings:torch.Tensor,
+    roi_features_embeddings:torch.Tensor,
     max_seq_length:int=512,
-    max_roi_embedding_length:int=100)->(torch.Tensor,torch.Tensor):
+    embedding_dim:int=768,
+    max_num_rois:int=100)->(torch.Tensor,int):
     """
-    テキストEmbeddingとRoI Embeddingを合わせて選択肢全体のEmbeddingを作成する。
-    返り値はそれぞれoption_embeddingとtoken_type_ids
+    RoIのEmbeddingを作成する。
     """
-    roi_embedding_length=roi_embedding.size(0)
-    #RoI Embeddingが長すぎる場合には切り捨てる。
-    if roi_embedding_length>max_roi_embedding_length:
-        roi_embedding=roi_embedding[:max_roi_embedding_length]
-        roi_embedding_length=max_roi_embedding_length
-    text_embedding=text_embedding[:max_seq_length-roi_embedding_length]
-    text_embedding[-1]=3    #[SEP]
-    option_embedding=torch.cat([text_embedding,roi_embedding],dim=0)
+    bert_model.eval()
 
-    #Token Type IDはテキスト部分が0、画像部分が1となるようにする。
-    token_type_ids=torch.zeros(max_seq_length,dtype=torch.long).to(device)
-    for i in range(max_seq_length-roi_embedding_length,max_seq_length):
-        token_type_ids[i]=1
+    position_embeddings=bert_model.embeddings.position_embeddings
+    token_type_embeddings=bert_model.embeddings.token_type_embeddings
+    layer_norm=bert_model.embeddings.layer_norm
+    dropout=bert_model.embeddings.dropout
 
-    return option_embedding,token_type_ids
+    num_rois=roi_boxes_embeddings.size(0)
+    if num_rois>max_num_rois:
+        roi_boxes_embeddings=roi_boxes_embeddings[:max_num_rois]
+        roi_features_embeddings=roi_features_embeddings[:max_num_rois]
+        num_rois=max_num_rois
 
-def create_inputs_embeds_and_token_type_ids(
+    position_ids=torch.empty(max_seq_length,dtype=torch.long).to(device)
+    for i in range(max_seq_length):
+        position_ids[i]=i
+    position_ids=posion_ids[max_seq_length-num_rois:]
+
+    #RoIのToken Type IDは1
+    token_type_ids=torch.ones(max_seq_length,dtype=torch.long).to(device)
+    token_type_ids=token_type_ids[max_seq_length-num_rois:]
+
+    v_position_embeddings=position_embeddings(position_ids)
+    v_token_type_embeddings=token_type_embeddings(token_type_ids)
+
+    embeddings=roi_boxes_embeddings+roi_features_embeddings+v_position_embeddings+v_token_type_embeddings
+    embeddings=LayerNorm(embeddings)
+    embeddings=dropout(embeddings)
+
+    return embeddings,num_rois
+
+def create_inputs_embeds(
     bert_model:BertModel,
     input_ids:torch.Tensor,
     indices:torch.Tensor,
@@ -151,20 +176,20 @@ def create_inputs_embeds_and_token_type_ids(
     im_features_dir:str,
     max_seq_length:int=512,
     embedding_dim:int=768,
-    max_roi_embedding_length:int=100)->(torch.Tensor,torch.Tensor):
+    max_num_rois:int=100)->torch.Tensor:
     """
-    BertForMultipleChoiceに入力するEmbeddingとToken Type IDを作成する。
+    BertForMultipleChoiceに入力するEmbeddingを作成する。
     """
     batch_size=input_ids.size(0)
     num_options=input_ids.size(1)
 
     inputs_embeds=torch.empty(batch_size,num_options,max_seq_length,embedding_dim).to(device)
-    token_type_ids=torch.empty(batch_size,num_options,max_seq_length,dtype=torch.long).to(device)
 
     for i in range(batch_size):
         text_embeddings=create_text_embeddings(
             bert_model,input_ids[i],
-            max_seq_length=max_seq_length,embedding_dim=embedding_dim
+            max_seq_length=max_seq_length,
+            embedding_dim=embedding_dim
         )
 
         ops=options[indices[i]]
@@ -179,19 +204,27 @@ def create_inputs_embeds_and_token_type_ids(
 
             #画像の特徴量が存在する場合 (矩形領域の座標データも存在するはず)
             if os.path.exists(im_features_filepath):
-                im_boxes=torch.load(im_boxes_filepath,map_location=device).to(device)
-                im_features=torch.load(im_features_filepath,map_location=device).to(device)
-                roi_embedding=im_boxes+im_features
-                option_embedding,token_type_ids_tmp=create_option_embedding(text_embeddings[j],roi_embedding)
+                roi_boxes=torch.load(im_boxes_filepath,map_location=device).to(device)
+                roi_features=torch.load(im_features_filepath,map_location=device).to(device)
+
+                roi_embeddings,num_rois=process_roi_embeddings(
+                    bert_model,
+                    roi_boxes,
+                    roi_features,
+                    max_seq_length=max_seq_length,
+                    embedding_dim=embedding_dim,
+                    max_num_rois=max_num_rois
+                )
+
+                trunc_text_embeddings=text_embeddings[j,:max_seq_length-num_rois]
+                option_embeddings=torch.cat([trunc_text_embeddings,roi_embeddings],dim=0)
             #画像の特徴量が存在しない場合
             else:
-                option_embedding=text_embeddings[j]
-                token_type_ids_tmp=torch.zeros(max_seq_length,dtype=torch.long).to(device)
+                option_embeddings=text_embeddings[j]
 
-            inputs_embeds[i,j]=option_embedding
-            token_type_ids[i,j]=token_type_ids_tmp
+            inputs_embeds[i,j]=option_embeddings
 
-    return inputs_embeds,token_type_ids
+    return inputs_embeds
 
 def train(
     bert_model:BertModel,
@@ -204,7 +237,7 @@ def train(
     dataloader:DataLoader,
     max_seq_length:int=512,
     embedding_dim:int=768,
-    max_roi_embedding_length:int=100,
+    max_num_rois:int=100,
     logger:logging.Logger=default_logger,
     logging_steps:int=100)->float:
     """
@@ -222,12 +255,12 @@ def train(
         bert_inputs = {
             "indices":batch[0].to(device),
             "input_ids": batch[1].to(device),
-            "attention_mask": batch[2].to(device),
-            "token_type_ids": batch[3].to(device),
+            #"attention_mask": batch[2].to(device),
+            #"token_type_ids": batch[3].to(device),
             "labels": batch[4].to(device)
         }
 
-        inputs_embeds,inputs_token_type_ids=create_inputs_embeds_and_token_type_ids(
+        inputs_embeds=create_inputs_embeds(
             bert_model,
             bert_inputs["input_ids"],
             bert_inputs["indices"],
@@ -236,13 +269,13 @@ def train(
             im_features_dir,
             max_seq_length=max_seq_length,
             embedding_dim=embedding_dim,
-            max_roi_embedding_length=max_roi_embedding_length
+            max_num_rois=max_num_rois
         )
 
         classifier_inputs={
             "inputs_embeds":inputs_embeds,
-            "attention_mask":bert_inputs["attention_mask"],
-            "token_type_ids":inputs_token_type_ids,
+            #"attention_mask":bert_inputs["attention_mask"],
+            #"token_type_ids":inputs_token_type_ids,
             "labels":bert_inputs["labels"]
         }
 
@@ -281,7 +314,7 @@ def evaluate(
     dataloader:DataLoader,
     max_seq_length:int=512,
     embedding_dim:int=768,
-    max_roi_embedding_length:int=100):
+    max_num_rois:int=100):
     """
     モデルの評価を行う。
     結果やラベルはDict形式で返される。
@@ -308,7 +341,7 @@ def evaluate(
                 "labels": batch[4].to(device)
             }
 
-            inputs_embeds,inputs_token_type_ids=create_inputs_embeds_and_token_type_ids(
+            inputs_embeds=create_inputs_embeds(
                 bert_model,
                 bert_inputs["input_ids"],
                 bert_inputs["indices"],
@@ -317,13 +350,13 @@ def evaluate(
                 im_features_dir,
                 max_seq_length=max_seq_length,
                 embedding_dim=embedding_dim,
-                max_roi_embedding_length=max_roi_embedding_length
+                max_num_rois=max_num_rois
             )
 
             classifier_inputs={
                 "inputs_embeds":inputs_embeds,
-                "attention_mask":bert_inputs["attention_mask"],
-                "token_type_ids":inputs_token_type_ids,
+                #"attention_mask":bert_inputs["attention_mask"],
+                #"token_type_ids":inputs_token_type_ids,
                 "labels":bert_inputs["labels"]
             }
 
@@ -425,7 +458,7 @@ class FasterRCNNModeler(object):
         num_epochs:int=5,
         lr:float=2.5e-5,
         init_parameters=False,
-        max_roi_embedding_length:int=100,
+        max_num_rois:int=100,
         result_save_dir:str="./OutputDir",
         logging_steps:int=100):
         logger=self.logger
@@ -465,7 +498,7 @@ class FasterRCNNModeler(object):
                 train_dataloader,
                 max_seq_length=512,
                 embedding_dim=self.embedding_dim,
-                max_roi_embedding_length=max_roi_embedding_length,
+                max_num_rois=max_num_rois,
                 logger=logger,
                 logging_steps=logging_steps
             )
@@ -485,7 +518,7 @@ class FasterRCNNModeler(object):
                 self.dev_dataloader,
                 max_seq_length=512,
                 embedding_dim=self.embedding_dim,
-                max_roi_embedding_length=max_roi_embedding_length
+                max_num_rois=max_num_rois
             )
             accuracy=res["accuracy"]*100.0
             eval_loss=res["eval_loss"]
@@ -569,7 +602,7 @@ class FasterRCNNTester(object):
         model_filepath:str,
         result_filepath:str,
         labels_filepath:str,
-        max_roi_embedding_length:int=100):
+        max_num_rois:int=100):
         logger=self.logger
         logger.info("モデルのテストを開始します。")
 
@@ -588,7 +621,7 @@ class FasterRCNNTester(object):
             self.dev_dataloader,
             max_seq_length=512,
             embedding_dim=self.embedding_dim,
-            max_roi_embedding_length=max_roi_embedding_length
+            max_num_rois=max_num_rois
         )
         accuracy=res["accuracy"]*100.0
         eval_loss=res["eval_loss"]
