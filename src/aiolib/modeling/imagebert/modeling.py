@@ -450,7 +450,6 @@ class ImageBertModeler(object):
                 self.roi_boxes_dir,
                 self.roi_features_dir,
                 self.dev_dataloader,
-                embedding_dim=self.embedding_dim,
                 max_num_rois=max_num_rois,
                 device=self.device
             )
@@ -472,3 +471,87 @@ class ImageBertModeler(object):
             with open(labels_filepath,"w") as w:
                 for pred_label,correct_label in zip(pred_labels,correct_labels):
                     w.write("{} {}\n".format(pred_label,correct_label))
+
+class ImageBertTester(object):
+    """
+    画像の特徴量を使用してFine-Tuningされたモデルのテストを行う。
+    """
+    def __init__(
+        self,
+        test_input_dir:str,
+        bert_model_dir:str,
+        roi_boxes_dir:str,
+        roi_features_dir:str,
+        logger:logging.Logger=default_logger):
+        self.logger=logger
+
+        logger.info("{}からテスト用データローダを作成します。".format(test_input_dir))
+        test_dataset=create_dataset(test_input_dir,num_examples=-1,num_options=20)
+        self.test_dataloader=DataLoader(test_dataset,batch_size=4,shuffle=False)
+
+        logger.info("選択肢のリストを読み込みます。")
+        self.test_options=load_options_list(os.path.join(test_input_dir,"options_list.txt"))
+
+        logger.info("roi_boxes_dir: {}\troi_features_dir: {}".format(roi_boxes_dir,roi_features_dir))
+        self.roi_boxes_dir=roi_boxes_dir
+        self.roi_features_dir=roi_features_dir
+
+        self.bert_model_dir=bert_model_dir
+        self.__create_classifier_model()
+
+        self.device=torch.device("cpu") #デフォルトではCPU
+
+    def __create_classifier_model(self):
+        logger=self.logger
+
+        self.classifier_model=None
+        if self.bert_model_dir=="USE_DEFAULT":
+            logger.info("デフォルトのBERTモデルを用いて分類器のパラメータを初期化します。")
+            self.classifier_model=ImageBertForMultipleChoice.from_pretrained("cl-tohoku/bert-base-japanese-whole-word-masking")
+        else:
+            logger.info("{}からBERTモデルを読み込んで分類器のパラメータを初期化します。".format(self.bert_model_dir))
+            self.classifier_model=ImageBertForMultipleChoice.from_pretrained(self.bert_model_dir)
+
+    def to(self,device:torch.device):
+        self.device=device
+        self.classifier_model.to(device)
+
+    def test(
+        self,
+        model_filepath:str,
+        result_filepath:str,
+        labels_filepath:str,
+        max_num_rois:int=100):
+        logger=self.logger
+        logger.info("モデルのテストを開始します。")
+
+        #モデルのパラメータを読み込む。
+        logger.info("{}からモデルパラメータを読み込みます。".format(model_filepath))
+        parameters=torch.load(model_filepath,map_location=self.device).to(self.device)
+        self.classifier_model.load_state_dict(parameters)
+
+        #評価
+        res=evaluate(
+            self.classifier_model,
+            self.test_options,
+            self.roi_boxes_dir,
+            self.roi_features_dir,
+            self.test_dataloader,
+            max_num_rois=max_num_rois,
+            device=self.device
+        )
+        accuracy=res["accuracy"]*100.0
+        eval_loss=res["eval_loss"]
+        logger.info("正解率: {} %".format(accuracy))
+        logger.info("評価時の損失平均値: {}".format(eval_loss))
+
+        #テキストファイルに評価の結果を保存する。
+        with open(result_filepath,"w",encoding="utf_8",newline="") as w:
+            w.write("正解率: {} %\n".format(accuracy))
+            w.write("評価時の損失平均値: {}\n".format(eval_loss))
+
+        pred_labels=res["pred_labels"]
+        correct_labels=res["correct_labels"]
+        with open(labels_filepath,"w") as w:
+            for pred_label,correct_label in zip(pred_labels,correct_labels):
+                w.write("{} {}\n".format(pred_label,correct_label))
