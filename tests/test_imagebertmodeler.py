@@ -2,12 +2,15 @@ import argparse
 import logging
 import sys
 import os
+import torch
 sys.path.append(os.path.abspath("../src/aiolib"))
 
 from modeling.imagebert.modeling import ImageBertModeler
 
 logging_fmt="%(asctime)s %(levelname)s: %(message)s"
 logging.basicConfig(format=logging_fmt)
+
+device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def main(
     train_input_dir:str,
@@ -23,6 +26,7 @@ def main(
         roi_boxes_dir,
         roi_features_dir
     )
+    modeler.to(device)
     modeler.train_and_eval(result_save_dir=result_save_dir)
 
 if __name__=="__main__":
