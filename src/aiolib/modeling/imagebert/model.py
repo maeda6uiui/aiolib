@@ -10,7 +10,7 @@ from transformers import(
 default_logger=logging.getLogger(__name__)
 default_logger.setLevel(level=logging.INFO)
 
-BERT_MAX_SEQ_LENGTH=512
+BERT_MAX_SEQ_LENGTH=512 #BERTに入力するシーケンスの最大長
 
 class ImageBertModel(BertModel):
     """
@@ -20,10 +20,10 @@ class ImageBertModel(BertModel):
         self,
         config:BertConfig,
         add_pooling_layer:bool=True,
-        roi_features_dim:int=1024,
-        max_num_rois:int=100,
-        image_width:int=256,
-        image_height:int=256,
+        roi_features_dim:int=1024,  #RoI特徴量の次元
+        max_num_rois:int=100,   #入力するRoIの最大数
+        image_width:int=256,    #元画像の幅
+        image_height:int=256,   #元画像の高さ
         logger:logging.Logger=default_logger):
         super().__init__(config,add_pooling_layer=add_pooling_layer)
         self.logger=logger
@@ -31,13 +31,18 @@ class ImageBertModel(BertModel):
         self.roi_features_dim=roi_features_dim
         self.max_num_rois=max_num_rois
 
+        #FC層の作成
+        #RoI関連のベクトルをBERTのhidden sizeに射影する。
         self.fc_roi_boxes=nn.Linear(5,config.hidden_size)
         self.fc_roi_features=nn.Linear(roi_features_dim,config.hidden_size)
 
+        #Position ID (トークンのインデックス)
         self.position_ids=torch.empty(BERT_MAX_SEQ_LENGTH,dtype=torch.long)
         for i in range(BERT_MAX_SEQ_LENGTH):
             self.position_ids[i]=i
+        #テキストのToken Type IDは0
         self.text_token_type_ids=torch.zeros(BERT_MAX_SEQ_LENGTH,dtype=torch.long)
+        #RoIのToken Type IDは1
         self.roi_token_type_ids=torch.ones(BERT_MAX_SEQ_LENGTH,dtype=torch.long)
 
         self.wh_tensor=torch.empty(max_num_rois,5)  #(RoIの)Position Embedding作成に使用する。
@@ -62,9 +67,10 @@ class ImageBertModel(BertModel):
 
     def __create_embeddings(
         self,
-        input_ids:torch.Tensor,
-        roi_boxes:torch.Tensor,
-        roi_features:torch.Tensor)->torch.Tensor:
+        input_ids:torch.Tensor, #(N,BERT_MAX_SEQ_LENGTH)
+        roi_boxes:torch.Tensor, #(N,max_num_rois,4)
+        roi_features:torch.Tensor   #(N,max_num_rois,roi_features_dim)
+    )->torch.Tensor:
         """
         入力Embeddingを作成する。
         """
@@ -115,6 +121,7 @@ class ImageBertModel(BertModel):
         trunc_roi_token_type_ids=v_roi_token_type_ids_embeddings[BERT_MAX_SEQ_LENGTH-self.max_num_rois:]
         v_token_type_ids_embeddings=torch.cat([trunc_text_token_type_ids,trunc_roi_token_type_ids],dim=0)
 
+        #最終的なEmbeddingはすべてを足したもの
         embeddings=text_roi_embeddings+v_position_embeddings+v_token_type_ids_embeddings
         embeddings=layer_norm(embeddings)
         embeddings=dropout(embeddings)
@@ -124,11 +131,12 @@ class ImageBertModel(BertModel):
     def forward(
         self,
         input_ids:torch.Tensor, #(N,BERT_MAX_SEQ_LENGTH)
-        roi_boxes:torch.Tensor,    #(N,max_num_rois,features_dim)
-        roi_features:torch.Tensor,
+        roi_boxes:torch.Tensor,    #(N,max_num_rois,4)
+        roi_features:torch.Tensor,  #(N,max_num_rois,roi_features_dim)
         output_hidden_states:bool=None,
         return_dict:bool=None):
         """
+        forward
         RoIのTensorはTrim済みのものを入力すること
         """
         embeddings=self.__create_embeddings(input_ids,roi_boxes,roi_features)
@@ -146,12 +154,29 @@ class ImageBertModel(BertModel):
         return ret
 
 class ImageBertForMultipleChoice(BertPreTrainedModel):
+    """
+    ImageBertModelのトップに全結合層をつけたもの
+    BertForMultipleChoiceのImageBERT版
+    """
     def __init__(
         self,
-        config:BertConfig):
+        config:BertConfig,
+        roi_features_dim:int=1024,  #RoI特徴量の次元
+        max_num_rois:int=100,   #入力するRoIの最大数
+        image_width:int=256,    #元画像の幅
+        image_height:int=256,   #元画像の高さ
+        logger:logging.Logger=default_logger
+    ):
         super().__init__(config)
 
-        self.imbert=ImageBertModel(config)
+        self.imbert=ImageBertModel(
+            config,
+            roi_features_dim=roi_features_dim,
+            max_num_rois=max_num_rois,
+            image_width=image_width,
+            image_height=image_height,
+            logger=logger
+        )
         self.dropout=nn.Dropout(config.hidden_dropout_prob)
         self.classifier=nn.Linear(config.hidden_size,1)
 
@@ -167,8 +192,8 @@ class ImageBertForMultipleChoice(BertPreTrainedModel):
     def forward(
         self,
         input_ids:torch.Tensor, #(N,num_choices,BERT_MAX_SEQ_LENGTH)
-        roi_boxes:torch.Tensor,    #(N,num_choices,max_num_rois,features_dim)
-        roi_features:torch.Tensor,
+        roi_boxes:torch.Tensor,    #(N,num_choices,max_num_rois,4)
+        roi_features:torch.Tensor,  #(N,num_choices,max_num_rois,roi_features_dim)
         labels:torch.Tensor,
         output_hidden_states:bool=None,
         return_dict:bool=None):
