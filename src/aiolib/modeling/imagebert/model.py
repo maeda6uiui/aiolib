@@ -53,13 +53,12 @@ class ImageBertModel(BertModel):
     def to(self,device:torch.device):
         super().to(device)
 
-        self.to(device)
         self.fc_roi_boxes.to(device)
         self.fc_roi_features.to(device)
-        self.position_ids.to(device)
-        self.text_token_type_ids.to(device)
-        self.roi_token_type_ids.to(device)
-        self.wh_tensor.to(device)
+        self.position_ids=self.position_ids.to(device)
+        self.text_token_type_ids=self.text_token_type_ids.to(device)
+        self.roi_token_type_ids=self.roi_token_type_ids.to(device)
+        self.wh_tensor=self.wh_tensor.to(device)
 
     def __create_embeddings(
         self,
@@ -157,6 +156,13 @@ class ImageBertForMultipleChoice(BertPreTrainedModel):
         self.classifier=nn.Linear(config.hidden_size,1)
 
         self.init_weights()
+
+    def to(self,device:torch.device):
+        super().to(device)
+
+        self.imbert.to(device)
+        self.dropout.to(device)
+        self.classifier.to(device)
 
     def forward(
         self,
