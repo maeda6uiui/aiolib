@@ -85,7 +85,7 @@ def create_dataset(input_dir:str,num_examples:int=-1,num_options:int=4)->TensorD
 
     return TensorDataset(indices,input_ids,attention_mask,token_type_ids,labels)
 
-def get_roi_boxes_and_features(
+def __get_roi_boxes_and_features(
     options:QuestionOptions,
     num_options:int,
     roi_boxes_dir:str,
@@ -120,48 +120,48 @@ def get_roi_boxes_and_features(
 
     return roi_boxes_list,roi_features_list
 
-def trim_roi_tensors(
+def __trim_roi_tensors(
     tensors:List[torch.Tensor],
     max_num_rois:int,
     out_dim:int,
     device:torch.device=default_device)->torch.Tensor:
-        """
-        各バッチで含まれるRoIの数が異なると処理が面倒なので、max_num_roisに合わせる。
-        もしもmax_num_roisよりも多い場合には切り捨て、
-        max_num_roisよりも少ない場合には0ベクトルで埋める。
+    """
+    各バッチの各選択肢で含まれるRoIの数が異なると処理が面倒なので、max_num_roisに合わせる。
+    もしもmax_num_roisよりも多い場合には切り捨て、max_num_roisよりも少ない場合には0ベクトルで埋める。
 
-        入力Tensorのサイズ
-        [(num_rois,out_dim)]    可変個のTensor
+    入力Tensorのサイズ
+    [(num_rois,out_dim)]    num_options個のTensor
 
-        出力Tensorのサイズ
-        (N,max_num_rois,out_dim)
-        """
-        num_options=len(tensors)
-        ret=torch.empty(num_options,max_num_rois,out_dim).to(device)
+    出力Tensorのサイズ
+    (num_options,max_num_rois,out_dim)
+    """
+    num_options=len(tensors)
+    ret=torch.empty(num_options,max_num_rois,out_dim).to(device)
 
-        for i,tensor in enumerate(tensors):
-            if tensor is None:
-                ret[i]=torch.zeros(max_num_rois,out_dim).to(device)
-                continue
+    for i,tensor in enumerate(tensors):
+        #選択肢に対応するRoIが存在しない場合
+        if tensor is None:
+            ret[i]=torch.zeros(max_num_rois,out_dim).to(device)
+            continue
 
-            num_rois=tensor.size(0)
+        num_rois=tensor.size(0)
 
-            #RoIの数が制限よりも多い場合はTruncateする。
-            if num_rois>max_num_rois:
-                tensor=tensor[:max_num_rois]
-            #RoIの数が制限よりも少ない場合は0ベクトルで埋める。
-            elif num_rois<max_num_rois:
-                zeros=torch.zeros(max_num_rois-num_rois,out_dim).to(device)
-                tensor=torch.cat([tensor,zeros],dim=0)
+        #RoIの数が制限よりも多い場合はTruncateする。
+        if num_rois>max_num_rois:
+            tensor=tensor[:max_num_rois]
+        #RoIの数が制限よりも少ない場合は0ベクトルで埋める。
+        elif num_rois<max_num_rois:
+            zeros=torch.zeros(max_num_rois-num_rois,out_dim).to(device)
+            tensor=torch.cat([tensor,zeros],dim=0)
 
-            ret[i]=tensor
+        ret[i]=tensor
 
-        return ret
+    return ret
 
 def create_roi_boxes_and_tensors(
-    options_list:List[QuestionOptions],
-    question_indices:torch.Tensor,
-    num_options:int,
+    options_list:List[QuestionOptions], #N個のQuestionOptionsを含むList
+    question_indices:torch.Tensor,  #問題のIndex (N個)
+    num_options:int,    #選択肢の数
     roi_boxes_dir:str,
     roi_features_dir:str,
     max_num_rois:int,
@@ -177,11 +177,13 @@ def create_roi_boxes_and_tensors(
 
     for i in range(batch_size):
         options=options_list[question_indices[i]]
-        roi_boxes_list,roi_features_list=get_roi_boxes_and_features(
+        #RoIの座標情報と特徴量をファイルから読み込む。
+        roi_boxes_list,roi_features_list=__get_roi_boxes_and_features(
             options,num_options,roi_boxes_dir,roi_features_dir,device=device
         )
-        roi_boxes=trim_roi_tensors(roi_boxes_list,max_num_rois,4,device=device)
-        roi_features=trim_roi_tensors(roi_features_list,max_num_rois,roi_features_dim,device=device)
+        #選択肢ごとに含まれるRoIの数が異なると処理が面倒なので、max_num_roisに合わせる。
+        roi_boxes=__trim_roi_tensors(roi_boxes_list,max_num_rois,4,device=device)
+        roi_features=__trim_roi_tensors(roi_features_list,max_num_rois,roi_features_dim,device=device)
 
         ret_roi_boxes[i]=roi_boxes
         ret_roi_features[i]=roi_features
@@ -285,7 +287,6 @@ def evaluate(
 
     for batch_idx,batch in enumerate(dataloader):
         with torch.no_grad():
-            batch_size=len(batch)
             batch = tuple(t for t in batch)
             bert_inputs = {
                 "indices":batch[0].to(device),
