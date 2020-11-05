@@ -90,7 +90,7 @@ def get_roi_boxes_and_features(
     num_options:int,
     roi_boxes_dir:str,
     roi_features_dir:str,
-    device:torch.Device=default_device)->Tuple[List[torch.Tensor],List[torch.Tensor]]:
+    device:torch.device=default_device)->Tuple[List[torch.Tensor],List[torch.Tensor]]:
     """
     各選択肢に対応するRoIの矩形領域情報をファイルから読み込む。
 
@@ -123,25 +123,25 @@ def get_roi_boxes_and_features(
 def trim_roi_tensors(
     tensors:List[torch.Tensor],
     max_num_rois:int,
-    roi_features_dim:int,
-    device:torch.Device=default_device)->torch.Tensor:
+    out_dim:int,
+    device:torch.device=default_device)->torch.Tensor:
         """
         各バッチで含まれるRoIの数が異なると処理が面倒なので、max_num_roisに合わせる。
         もしもmax_num_roisよりも多い場合には切り捨て、
         max_num_roisよりも少ない場合には0ベクトルで埋める。
 
         入力Tensorのサイズ
-        roi_boxes: (num_rois,roi_features_dim)
+        [(num_rois,out_dim)]    可変個のTensor
 
         出力Tensorのサイズ
-        (N,max_num_rois,roi_features_dim)
+        (N,max_num_rois,out_dim)
         """
-        batch_size=len(tensors)
-        ret=torch.empty(batch_size,max_num_rois,roi_features_dim).to(device)
+        num_options=len(tensors)
+        ret=torch.empty(num_options,max_num_rois,out_dim).to(device)
 
         for i,tensor in enumerate(tensors):
             if tensor is None:
-                ret[i]=torch.zeros(max_num_rois).to(device)
+                ret[i]=torch.zeros(max_num_rois,out_dim).to(device)
                 continue
 
             num_rois=tensor.size(0)
@@ -151,7 +151,7 @@ def trim_roi_tensors(
                 tensor=tensor[:max_num_rois]
             #RoIの数が制限よりも少ない場合は0ベクトルで埋める。
             elif num_rois<max_num_rois:
-                zeros=torch.zeros(max_num_rois-num_rois,roi_features_dim).to(device)
+                zeros=torch.zeros(max_num_rois-num_rois,out_dim).to(device)
                 tensor=torch.cat([tensor,zeros],dim=0)
 
             ret[i]=tensor
@@ -165,23 +165,23 @@ def create_roi_boxes_and_tensors(
     roi_boxes_dir:str,
     roi_features_dir:str,
     max_num_rois:int,
-    embedding_dim:int,
-    device:torch.Device=default_device)->Tuple(torch.Tensor,torch.Tensor):
+    roi_features_dim:int,
+    device:torch.device=default_device)->Tuple[torch.Tensor,torch.Tensor]:
     """
     ImageBERTのモデルに入力するためのRoI特徴量を作成する。
     """
     batch_size=question_indices.size(0)
 
-    ret_roi_boxes=torch.empty(batch_size,max_num_rois,4).to(device)
-    ret_roi_features=torch.empty(batch_size,max_num_rois,embedding_dim).to(device)
+    ret_roi_boxes=torch.empty(batch_size,num_options,max_num_rois,4).to(device)
+    ret_roi_features=torch.empty(batch_size,num_options,max_num_rois,roi_features_dim).to(device)
 
     for i in range(batch_size):
         options=options_list[question_indices[i]]
         roi_boxes_list,roi_features_list=get_roi_boxes_and_features(
             options,num_options,roi_boxes_dir,roi_features_dir,device=device
         )
-        roi_boxes=trim_roi_tensors(roi_boxes_list,max_num_rois,embedding_dim,device=device)
-        roi_features=trim_roi_tensors(roi_features_list,max_num_rois,embedding_dim,device=device)
+        roi_boxes=trim_roi_tensors(roi_boxes_list,max_num_rois,4,device=device)
+        roi_features=trim_roi_tensors(roi_features_list,max_num_rois,roi_features_dim,device=device)
 
         ret_roi_boxes[i]=roi_boxes
         ret_roi_features[i]=roi_features
@@ -196,9 +196,9 @@ def train(
     optimizer:torch.optim.Optimizer,
     scheduler:torch.optim.lr_scheduler.LambdaLR,
     dataloader:DataLoader,
-    embedding_dim:int=768,
     max_num_rois:int=100,
-    device:torch.Device=default_device,
+    roi_features_dim:int=1024,
+    device:torch.device=default_device,
     logger:logging.Logger=default_logger,
     logging_steps:int=100):
     """
@@ -225,7 +225,7 @@ def train(
             roi_boxes_dir,
             roi_features_dir,
             max_num_rois,
-            embedding_dim,
+            roi_features_dim,
             device=device
         )
 
@@ -268,9 +268,9 @@ def evaluate(
     roi_boxes_dir:str,
     roi_features_dir:str,
     dataloader:DataLoader,
-    embedding_dim:int=768,
     max_num_rois:int=100,
-    device:torch.Device=default_device):
+    roi_features_dim:int=1024,
+    device:torch.device=default_device):
     """
     モデルの評価を行う。
     結果やラベルはDict形式で返される。
@@ -301,7 +301,7 @@ def evaluate(
                 roi_boxes_dir,
                 roi_features_dir,
                 max_num_rois,
-                embedding_dim,
+                roi_features_dim,
                 device=device
             )
 
@@ -385,7 +385,7 @@ class ImageBertModeler(object):
             logger.info("{}からBERTモデルを読み込んで分類器のパラメータを初期化します。".format(self.bert_model_dir))
             self.classifier_model=ImageBertForMultipleChoice.from_pretrained(self.bert_model_dir)
         
-    def to(self,device:torch.Device):
+    def to(self,device:torch.device):
         self.device=device
         self.classifier_model.to(device)
 
@@ -432,7 +432,6 @@ class ImageBertModeler(object):
                 optimizer,
                 scheduler,
                 train_dataloader,
-                embedding_dim=self.embedding_dim,
                 max_num_rois=max_num_rois,
                 device=self.device,
                 logger=logger,

@@ -4,8 +4,7 @@ import torch.nn as nn
 from transformers import(
     BertConfig,
     BertModel,
-    BertPreTrainedModel,
-    MultipleChoiceModelOutput
+    BertPreTrainedModel
 )
 
 default_logger=logging.getLogger(__name__)
@@ -49,13 +48,9 @@ class ImageBertModel(BertModel):
             self.wh_tensor[i,3]=image_height
             self.wh_tensor[i,4]=image_width*image_height
 
-        self.device=torch.device("cpu") #デフォルトではCPU
-
         self.init_weights()
 
-    def to(self,device:torch.Device):
-        self.device=device
-
+    def to(self,device:torch.device):
         super().to(device)
 
         self.to(device)
@@ -90,7 +85,7 @@ class ImageBertModel(BertModel):
         #=== RoIのEmbeddingを作成する。 ===
         roi_features=roi_features.view(-1,self.roi_features_dim)    #(N*max_num_rois,roi_features_dim)
         roi_features_embeddings=self.fc_roi_features(roi_features)  #(N*max_num_rois,hidden_size)
-        roi_features_embeddings=roi_features_embeddings.view(-1,self.max_num_rois,self.roi_features_dim)
+        roi_features_embeddings=roi_features_embeddings.view(-1,self.max_num_rois,self.config.hidden_size)
 
         #RoIの座標から(RoIの)Position Embeddingを作成する。
         roi_position_embeddings=torch.empty(self.max_num_rois,5).to(self.device)
@@ -196,9 +191,10 @@ class ImageBertForMultipleChoice(BertPreTrainedModel):
             output=(reshaped_logits,)+outputs[2:]
             return ((loss,)+output) if loss is not None else output
 
-        return MultipleChoiceModelOutput(
-            loss=loss,
-            logits=reshaped_logits,
-            hidden_states=outputs.hidden_states,
-            attentions=outputs.attentions,
-        )
+        ret={
+            "loss":loss,
+            "logits":reshaped_logits,
+            "hidden_states":outputs.hidden_states,
+            "attentions":outputs.attentions,
+        }
+        return ret
