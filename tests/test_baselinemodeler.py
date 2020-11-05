@@ -2,6 +2,7 @@ import argparse
 import logging
 import sys
 import os
+import torch
 sys.path.append(os.path.abspath("../src/aiolib"))
 
 from modeling.baseline.modeling import BaselineModeler
@@ -9,12 +10,15 @@ from modeling.baseline.modeling import BaselineModeler
 logging_fmt="%(asctime)s %(levelname)s: %(message)s"
 logging.basicConfig(format=logging_fmt)
 
+device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 def main(
     train_input_dir:str,
     dev_input_dir:str,
     bert_model_dir:str,
     result_save_dir:str):
     modeler=BaselineModeler(train_input_dir,dev_input_dir,bert_model_dir)
+    modeler.to(device)
     modeler.train_and_eval(result_save_dir=result_save_dir)
 
 if __name__=="__main__":

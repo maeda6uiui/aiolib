@@ -2,6 +2,7 @@ import argparse
 import logging
 import sys
 import os
+import torch
 sys.path.append(os.path.abspath("../src/aiolib"))
 
 from modeling.baseline.modeling import BaselineTester
@@ -9,12 +10,15 @@ from modeling.baseline.modeling import BaselineTester
 logging_fmt="%(asctime)s %(levelname)s: %(message)s"
 logging.basicConfig(format=logging_fmt)
 
+device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 def main(
     test_input_dir:str,
     bert_model_dir:str,
     checkpoint_dir:str,
     result_save_dir:str):
     tester=BaselineTester(test_input_dir,bert_model_dir)
+    tester.to(device)
 
     for i in range(5):
         checkpoint_filepath=os.path.join(checkpoint_dir,"checkpoint_{}.pt".format(i+1))
