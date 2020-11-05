@@ -1,10 +1,7 @@
 import logging
 import os
 import sys
-import random
 import torch
-from torch import tensor
-from torch._C import device
 import torch.nn as nn
 import numpy as np
 from torch.utils.data import DataLoader,TensorDataset
@@ -16,7 +13,9 @@ from transformers import(
 from typing import List,Tuple
 
 from .models import ImageBertForMultipleChoice
-from ...util import hashing
+
+sys.path.append("../../")
+from util import hashing
 
 default_logger=logging.getLogger(__name__)
 default_logger.setLevel(level=logging.INFO)
