@@ -6,6 +6,7 @@ import torch.nn as nn
 import numpy as np
 from torch.utils.data import DataLoader,TensorDataset
 from transformers import(
+    BertConfig,
     AdamW,
     get_linear_schedule_with_warmup
 )
@@ -378,10 +379,14 @@ class ImageBertModeler(object):
         self.classifier_model=None
         if self.bert_model_dir=="USE_DEFAULT":
             logger.info("デフォルトのBERTモデルを用いて分類器のパラメータを初期化します。")
-            self.classifier_model=ImageBertForMultipleChoice.from_pretrained("cl-tohoku/bert-base-japanese-whole-word-masking")
+            config=BertConfig.from_pretrained("cl-tohoku/bert-base-japanese-whole-word-masking")
+            self.classifier_model=ImageBertForMultipleChoice(config)
+            self.classifier_model.load_pretrained_weights("cl-tohoku/bert-base-japanese-whole-word-masking")
         else:
             logger.info("{}からBERTモデルを読み込んで分類器のパラメータを初期化します。".format(self.bert_model_dir))
-            self.classifier_model=ImageBertForMultipleChoice.from_pretrained(self.bert_model_dir)
+            config=BertConfig.from_json_file(self.bert_model_dir)
+            self.classifier_model=ImageBertForMultipleChoice(config)
+            self.classifier_model.load_pretrained_weights(self.bert_model_dir)
         
     def to(self,device:torch.device):
         self.device=device

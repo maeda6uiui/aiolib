@@ -182,6 +182,9 @@ class ImageBertForMultipleChoice(BertPreTrainedModel):
 
         self.init_weights()
 
+    def load_pretrained_weights(self,bert_model_dir:str):
+        self.imbert.from_pretrained(bert_model_dir)
+
     def to(self,device:torch.device):
         super().to(device)
 
