@@ -199,7 +199,8 @@ class ImageBertForMultipleChoice(BertPreTrainedModel):
         return_dict:bool=None):
         num_choices=input_ids.size(1)
         input_ids=input_ids.view(-1,input_ids.size(-1)) #(N*num_choices,BERT_MAX_SEQ_LENGTH)
-        roi_boxes=roi_boxes.view(-1,roi_boxes.size(-1)) #(N*num_choices,max_num_rois,features_dim)
+        roi_boxes=roi_boxes.view(-1,roi_boxes.size(-1)) #(N*num_choices,max_num_rois,4)
+        roi_features=roi_features.view(-1,roi_features.size(-1))    #(N*num_choices,max_num_rois,roi_features_dim)
 
         outputs=self.imbert(
             input_ids,
