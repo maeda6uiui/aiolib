@@ -15,16 +15,19 @@ from detectron2.config import get_cfg
 from detectron2.utils.logger import setup_logger
 setup_logger()
 
-from typing import List
+from typing import List,Tuple
 
 from .. import hashing
 
 default_logger=logging.getLogger(__name__)
 default_logger.setLevel(level=logging.INFO)
 
-device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
+default_device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-def get_region_features_single(raw_image:np.ndarray,predictor:DefaultPredictor)->(torch.Tensor,torch.Tensor):
+def get_region_features_single(
+    raw_image:np.ndarray,
+    predictor:DefaultPredictor,
+    device:torch.device=default_device)->Tuple[torch.Tensor,torch.Tensor]:
     """
     一つの画像から特徴量を取得する。
     """
@@ -56,7 +59,10 @@ def get_region_features_single(raw_image:np.ndarray,predictor:DefaultPredictor)-
 
         return boxes_tensor,box_features
 
-def get_region_features(raw_images:List[np.ndarray],predictor:DefaultPredictor)->(torch.Tensor,torch.Tensor):
+def get_region_features(
+    raw_images:List[np.ndarray],
+    predictor:DefaultPredictor,
+    device:torch.device=default_device)->Tuple[torch.Tensor,torch.Tensor]:
     """
     複数の画像から特徴量を取得する。
     物体が何も検出されなかった場合にはNoneが返される。
@@ -89,11 +95,11 @@ class ImageFeatureExtractorBase(object):
     """
     基底クラス
     """
-    def __init__(self,model_name:str):
+    def __init__(self,model_name:str,device:torch.device=default_device):
         cfg=get_cfg()
         cfg.merge_from_file(model_zoo.get_config_file(model_name))
         cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST=0.7
-        cfg.MODEL.DEVICE="cuda" if torch.cuda.is_available() else "cpu"
+        cfg.MODEL.DEVICE=str(device)
         cfg.MODEL.WEIGHTS=model_zoo.get_checkpoint_url(model_name)
         self.predictor=DefaultPredictor(cfg)
 
@@ -105,8 +111,9 @@ class WikipediaImageFeatureExtractor(ImageFeatureExtractorBase):
         self,
         article_list_filepath:str,
         model_name:str="COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml",
+        device:torch.device=default_device,
         logger:logging.Logger=default_logger):
-        super().__init__(model_name)
+        super().__init__(model_name,device=device)
         self.articles_list=pd.read_csv(article_list_filepath,encoding="utf_8",sep="\t")
         self.logger=logger
 
@@ -150,8 +157,9 @@ class ImageFeatureExtractor(ImageFeatureExtractorBase):
     def __init__(
         self,
         model_name:str="COCO-Detection/faster_rcnn_R_50_FPN_3x.yaml",
+        device:torch.device=default_device,
         logger:logging.Logger=default_logger):
-        super().__init__(model_name)
+        super().__init__(model_name,device=device)
         self.logger=logger
 
     def extract(
