@@ -120,16 +120,16 @@ class ImageBertModel(BertModel):
         text_roi_embeddings=torch.cat([trunc_word_embeddings,roi_embeddings],dim=1)
         #(N,BERT_MAX_SEQ_LENGTH,hidden_size)
 
-        trunc_text_token_type_ids=v_text_token_type_ids_embeddings[:BERT_MAX_SEQ_LENGTH-self.max_num_rois]
-        trunc_roi_token_type_ids=v_roi_token_type_ids_embeddings[BERT_MAX_SEQ_LENGTH-self.max_num_rois:]
-        v_token_type_ids_embeddings=torch.cat([trunc_text_token_type_ids,trunc_roi_token_type_ids],dim=0)
-        #(BERT_MAX_SEQ_LENGTH)
+        trunc_text_token_type_ids_embeddings=v_text_token_type_ids_embeddings[:BERT_MAX_SEQ_LENGTH-self.max_num_rois]
+        trunc_roi_token_type_ids_embeddings=v_roi_token_type_ids_embeddings[BERT_MAX_SEQ_LENGTH-self.max_num_rois:]
+        v_token_type_ids_embeddings=torch.cat([trunc_text_token_type_ids_embeddings,trunc_roi_token_type_ids_embeddings],dim=0)
+        #(BERT_MAX_SEQ_LENGTH,hidden_size)
 
         #Position EmbeddingとToken Type ID EmbeddingをExpandする。
         batch_size=input_ids.size(0)
-        v_position_embeddings=v_position_embeddings.expand(batch_size,-1)
+        v_position_embeddings=v_position_embeddings.expand(batch_size,BERT_MAX_SEQ_LENGTH,-1)
         #(N,BERT_MAX_SEQ_LENGTH,hidden_size)
-        v_token_type_ids_embeddings=v_token_type_ids_embeddings.expand(batch_size,-1)
+        v_token_type_ids_embeddings=v_token_type_ids_embeddings.expand(batch_size,BERT_MAX_SEQ_LENGTH,-1)
         #(N,BERT_MAX_SEQ_LENGTH,hidden_size)
 
         #最終的なEmbeddingはすべてを足したもの
