@@ -15,10 +15,8 @@ from transformers import(
 
 from typing import List,Tuple
 
-from .model import ImageBertForMultipleChoice
-
-sys.path.append("../../")
-from util import hashing
+from .models import ImageBertForMultipleChoice
+from ...util import hashing
 
 default_logger=logging.getLogger(__name__)
 default_logger.setLevel(level=logging.INFO)
