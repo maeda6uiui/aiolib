@@ -6,6 +6,7 @@ import torch
 sys.path.append(os.path.abspath("../src/aiolib"))
 
 from modeling.baseline.modeling import BaselineTester
+from util.seed import set_seed
 
 logging_fmt="%(asctime)s %(levelname)s: %(message)s"
 logging.basicConfig(format=logging_fmt)
@@ -17,6 +18,8 @@ def main(
     bert_model_dir:str,
     checkpoint_dir:str,
     result_save_dir:str):
+    set_seed(42)
+
     tester=BaselineTester(test_input_dir,bert_model_dir)
     tester.to(device)
 
