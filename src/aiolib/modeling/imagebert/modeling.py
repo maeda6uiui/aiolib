@@ -530,7 +530,7 @@ class ImageBertTester(object):
 
         #モデルのパラメータを読み込む。
         logger.info("{}からモデルパラメータを読み込みます。".format(model_filepath))
-        parameters=torch.load(model_filepath,map_location=self.device).to(self.device)
+        parameters=torch.load(model_filepath,map_location=self.device)
         self.classifier_model.load_state_dict(parameters)
 
         #評価
