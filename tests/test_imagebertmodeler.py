@@ -30,10 +30,7 @@ def main(
         roi_features_dir
     )
     modeler.to(device)
-    modeler.train_and_eval(
-        max_num_rois=1,#Debug
-        result_save_dir=result_save_dir
-    )
+    modeler.train_and_eval(result_save_dir=result_save_dir)
 
 if __name__=="__main__":
     parser=argparse.ArgumentParser()
