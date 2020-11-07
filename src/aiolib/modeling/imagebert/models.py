@@ -167,25 +167,17 @@ class ImageBertForMultipleChoice(BertPreTrainedModel):
     """
     def __init__(
         self,
-        config:BertConfig,
-        roi_features_dim:int=1024,  #RoI特徴量の次元
-        image_width:int=256,    #元画像の幅
-        image_height:int=256,   #元画像の高さ
-        logger:logging.Logger=default_logger
-    ):
+        config:BertConfig):
         super().__init__(config)
 
-        self.imbert=ImageBertModel(
-            config,
-            roi_features_dim=roi_features_dim,
-            image_width=image_width,
-            image_height=image_height,
-            logger=logger
-        )
+        self.imbert=ImageBertModel(config)
         self.dropout=nn.Dropout(config.hidden_dropout_prob)
         self.classifier=nn.Linear(config.hidden_size,1)
 
         self.init_weights()
+
+    def initialize_from_pretrained(self,pretrained_model_name_or_path:str,*model_args,**kwargs):
+        self.imbert=ImageBertModel.from_pretrained(pretrained_model_name_or_path,*model_args,**kwargs)
 
     def to(self,device:torch.device):
         super().to(device)
