@@ -350,6 +350,7 @@ class ImageBertModeler(object):
         bert_model_dir:str,
         roi_boxes_dir:str,
         roi_features_dir:str,
+        max_num_rois:int=100,
         logger:logging.Logger=default_logger):
         self.logger=logger
 
@@ -367,6 +368,7 @@ class ImageBertModeler(object):
         logger.info("roi_boxes_dir: {}\troi_features_dir: {}".format(roi_boxes_dir,roi_features_dir))
         self.roi_boxes_dir=roi_boxes_dir
         self.roi_features_dir=roi_features_dir
+        self.max_num_rois=max_num_rois
 
         self.bert_model_dir=bert_model_dir
         self.__create_classifier_model()
@@ -380,12 +382,12 @@ class ImageBertModeler(object):
         if self.bert_model_dir=="USE_DEFAULT":
             logger.info("デフォルトのBERTモデルを用いて分類器のパラメータを初期化します。")
             config=BertConfig.from_pretrained("cl-tohoku/bert-base-japanese-whole-word-masking")
-            self.classifier_model=ImageBertForMultipleChoice(config)
+            self.classifier_model=ImageBertForMultipleChoice(config,max_num_rois=self.max_num_rois)
             self.classifier_model.load_pretrained_weights("cl-tohoku/bert-base-japanese-whole-word-masking")
         else:
             logger.info("{}からBERTモデルを読み込んで分類器のパラメータを初期化します。".format(self.bert_model_dir))
             config=BertConfig.from_json_file(self.bert_model_dir)
-            self.classifier_model=ImageBertForMultipleChoice(config)
+            self.classifier_model=ImageBertForMultipleChoice(config,max_num_rois=self.max_num_rois)
             self.classifier_model.load_pretrained_weights(self.bert_model_dir)
         
     def to(self,device:torch.device):
@@ -398,7 +400,6 @@ class ImageBertModeler(object):
         num_epochs:int=5,
         lr:float=2.5e-5,
         init_parameters=False,
-        max_num_rois:int=100,
         result_save_dir:str="./OutputDir",
         logging_steps:int=100):
         logger=self.logger
@@ -435,7 +436,7 @@ class ImageBertModeler(object):
                 optimizer,
                 scheduler,
                 train_dataloader,
-                max_num_rois=max_num_rois,
+                max_num_rois=self.max_num_rois,
                 device=self.device,
                 logger=logger,
                 logging_steps=logging_steps
@@ -453,7 +454,7 @@ class ImageBertModeler(object):
                 self.roi_boxes_dir,
                 self.roi_features_dir,
                 self.dev_dataloader,
-                max_num_rois=max_num_rois,
+                max_num_rois=self.max_num_rois,
                 device=self.device
             )
             accuracy=res["accuracy"]*100.0
@@ -485,6 +486,7 @@ class ImageBertTester(object):
         bert_model_dir:str,
         roi_boxes_dir:str,
         roi_features_dir:str,
+        max_num_rois:int=100,
         logger:logging.Logger=default_logger):
         self.logger=logger
 
@@ -498,6 +500,7 @@ class ImageBertTester(object):
         logger.info("roi_boxes_dir: {}\troi_features_dir: {}".format(roi_boxes_dir,roi_features_dir))
         self.roi_boxes_dir=roi_boxes_dir
         self.roi_features_dir=roi_features_dir
+        self.max_num_rois=max_num_rois
 
         self.bert_model_dir=bert_model_dir
         self.__create_classifier_model()
@@ -510,10 +513,14 @@ class ImageBertTester(object):
         self.classifier_model=None
         if self.bert_model_dir=="USE_DEFAULT":
             logger.info("デフォルトのBERTモデルを用いて分類器のパラメータを初期化します。")
-            self.classifier_model=ImageBertForMultipleChoice.from_pretrained("cl-tohoku/bert-base-japanese-whole-word-masking")
+            config=BertConfig.from_pretrained("cl-tohoku/bert-base-japanese-whole-word-masking")
+            self.classifier_model=ImageBertForMultipleChoice(config,max_num_rois=self.max_num_rois)
+            self.classifier_model.load_pretrained_weights("cl-tohoku/bert-base-japanese-whole-word-masking")
         else:
             logger.info("{}からBERTモデルを読み込んで分類器のパラメータを初期化します。".format(self.bert_model_dir))
-            self.classifier_model=ImageBertForMultipleChoice.from_pretrained(self.bert_model_dir)
+            config=BertConfig.from_json_file(self.bert_model_dir)
+            self.classifier_model=ImageBertForMultipleChoice(config,max_num_rois=self.max_num_rois)
+            self.classifier_model.load_pretrained_weights(self.bert_model_dir)
 
     def to(self,device:torch.device):
         self.device=device
@@ -523,8 +530,7 @@ class ImageBertTester(object):
         self,
         model_filepath:str,
         result_filepath:str,
-        labels_filepath:str,
-        max_num_rois:int=100):
+        labels_filepath:str):
         logger=self.logger
         logger.info("モデルのテストを開始します。")
 
@@ -540,7 +546,7 @@ class ImageBertTester(object):
             self.roi_boxes_dir,
             self.roi_features_dir,
             self.test_dataloader,
-            max_num_rois=max_num_rois,
+            max_num_rois=self.max_num_rois,
             device=self.device
         )
         accuracy=res["accuracy"]*100.0
