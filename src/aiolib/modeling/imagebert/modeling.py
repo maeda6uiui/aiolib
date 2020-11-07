@@ -233,7 +233,8 @@ def train(
             "input_ids":bert_inputs["input_ids"],
             "roi_boxes":roi_boxes,
             "roi_features":roi_features,
-            "labels":bert_inputs["labels"]
+            "labels":bert_inputs["labels"],
+            "max_num_rois":max_num_rois
         }
 
         # Initialize gradiants
@@ -308,7 +309,8 @@ def evaluate(
                 "input_ids":bert_inputs["input_ids"],
                 "roi_boxes":roi_boxes,
                 "roi_features":roi_features,
-                "labels":bert_inputs["labels"]
+                "labels":bert_inputs["labels"],
+                "max_num_rois":max_num_rois
             }
 
             outputs = classifier_model(**classifier_inputs)
@@ -382,13 +384,13 @@ class ImageBertModeler(object):
         if self.bert_model_dir=="USE_DEFAULT":
             logger.info("デフォルトのBERTモデルを用いて分類器のパラメータを初期化します。")
             config=BertConfig.from_pretrained("cl-tohoku/bert-base-japanese-whole-word-masking")
-            self.classifier_model=ImageBertForMultipleChoice(config,max_num_rois=self.max_num_rois)
-            self.classifier_model.load_pretrained_weights("cl-tohoku/bert-base-japanese-whole-word-masking")
+            self.classifier_model=ImageBertForMultipleChoice(config)
+            self.classifier_model.initialize_from_pretrained("cl-tohoku/bert-base-japanese-whole-word-masking")
         else:
             logger.info("{}からBERTモデルを読み込んで分類器のパラメータを初期化します。".format(self.bert_model_dir))
             config=BertConfig.from_json_file(self.bert_model_dir)
-            self.classifier_model=ImageBertForMultipleChoice(config,max_num_rois=self.max_num_rois)
-            self.classifier_model.load_pretrained_weights(self.bert_model_dir)
+            self.classifier_model=ImageBertForMultipleChoice(config)
+            self.classifier_model.initialize_from_pretrained(self.bert_model_dir)
         
     def to(self,device:torch.device):
         self.device=device
@@ -514,13 +516,13 @@ class ImageBertTester(object):
         if self.bert_model_dir=="USE_DEFAULT":
             logger.info("デフォルトのBERTモデルを用いて分類器のパラメータを初期化します。")
             config=BertConfig.from_pretrained("cl-tohoku/bert-base-japanese-whole-word-masking")
-            self.classifier_model=ImageBertForMultipleChoice(config,max_num_rois=self.max_num_rois)
-            self.classifier_model.load_pretrained_weights("cl-tohoku/bert-base-japanese-whole-word-masking")
+            self.classifier_model=ImageBertForMultipleChoice(config)
+            self.classifier_model.initialize_from_pretrained("cl-tohoku/bert-base-japanese-whole-word-masking")
         else:
             logger.info("{}からBERTモデルを読み込んで分類器のパラメータを初期化します。".format(self.bert_model_dir))
             config=BertConfig.from_json_file(self.bert_model_dir)
-            self.classifier_model=ImageBertForMultipleChoice(config,max_num_rois=self.max_num_rois)
-            self.classifier_model.load_pretrained_weights(self.bert_model_dir)
+            self.classifier_model=ImageBertForMultipleChoice(config)
+            self.classifier_model.initialize_from_pretrained(self.bert_model_dir)
 
     def to(self,device:torch.device):
         self.device=device
