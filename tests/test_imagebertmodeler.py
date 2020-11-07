@@ -6,6 +6,7 @@ import torch
 sys.path.append(os.path.abspath("../src/aiolib"))
 
 from modeling.imagebert.modeling import ImageBertModeler
+from util.seed import set_seed
 
 logging_fmt="%(asctime)s %(levelname)s: %(message)s"
 logging.basicConfig(format=logging_fmt)
@@ -19,6 +20,8 @@ def main(
     roi_boxes_dir:str,
     roi_features_dir:str,
     result_save_dir:str):
+    set_seed(42)
+
     modeler=ImageBertModeler(
         train_input_dir,
         dev_input_dir,
