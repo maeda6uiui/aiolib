@@ -21,7 +21,6 @@ class ImageBertModel(BertModel):
         config:BertConfig,
         add_pooling_layer:bool=True,
         roi_features_dim:int=1024,  #RoI特徴量の次元
-        max_num_rois:int=100,   #入力するRoIの最大数
         image_width:int=256,    #元画像の幅
         image_height:int=256,   #元画像の高さ
         logger:logging.Logger=default_logger):
@@ -29,7 +28,6 @@ class ImageBertModel(BertModel):
         self.logger=logger
 
         self.roi_features_dim=roi_features_dim
-        self.max_num_rois=max_num_rois
 
         #FC層の作成
         #RoI関連のベクトルをBERTのhidden sizeに射影する。
@@ -68,7 +66,8 @@ class ImageBertModel(BertModel):
         self,
         input_ids:torch.Tensor, #(N,BERT_MAX_SEQ_LENGTH)
         roi_boxes:torch.Tensor, #(N,max_num_rois,4)
-        roi_features:torch.Tensor   #(N,max_num_rois,roi_features_dim)
+        roi_features:torch.Tensor,   #(N,max_num_rois,roi_features_dim)
+        max_num_rois:int
     )->torch.Tensor:
         """
         入力Embeddingを作成する。
@@ -93,9 +92,9 @@ class ImageBertModel(BertModel):
         #(N,max_num_rois,hidden_size)
 
         #RoIの座標から(RoIの)Position Embeddingを作成する。
-        roi_position_embeddings=torch.empty(batch_size,self.max_num_rois,5).to(self.device)
+        roi_position_embeddings=torch.empty(batch_size,max_num_rois,5).to(self.device)
         for i in range(batch_size):
-            for j in range(self.max_num_rois):
+            for j in range(max_num_rois):
                 x_tl=roi_boxes[i,j,0]
                 y_tl=roi_boxes[i,j,1]
                 x_br=roi_boxes[i,j,2]
@@ -116,12 +115,12 @@ class ImageBertModel(BertModel):
         roi_embeddings=roi_features_embeddings+roi_position_embeddings
 
         #=== テキストEmbeddingとRoI Embeddingを結合する。
-        trunc_word_embeddings=v_word_embeddings[:,:BERT_MAX_SEQ_LENGTH-self.max_num_rois,:]
+        trunc_word_embeddings=v_word_embeddings[:,:BERT_MAX_SEQ_LENGTH-max_num_rois,:]
         text_roi_embeddings=torch.cat([trunc_word_embeddings,roi_embeddings],dim=1)
         #(N,BERT_MAX_SEQ_LENGTH,hidden_size)
 
-        trunc_text_token_type_ids_embeddings=v_text_token_type_ids_embeddings[:BERT_MAX_SEQ_LENGTH-self.max_num_rois]
-        trunc_roi_token_type_ids_embeddings=v_roi_token_type_ids_embeddings[BERT_MAX_SEQ_LENGTH-self.max_num_rois:]
+        trunc_text_token_type_ids_embeddings=v_text_token_type_ids_embeddings[:BERT_MAX_SEQ_LENGTH-max_num_rois]
+        trunc_roi_token_type_ids_embeddings=v_roi_token_type_ids_embeddings[BERT_MAX_SEQ_LENGTH-max_num_rois:]
         v_token_type_ids_embeddings=torch.cat([trunc_text_token_type_ids_embeddings,trunc_roi_token_type_ids_embeddings],dim=0)
         #(BERT_MAX_SEQ_LENGTH,hidden_size)
 
@@ -143,9 +142,10 @@ class ImageBertModel(BertModel):
         input_ids:torch.Tensor, #(N,BERT_MAX_SEQ_LENGTH)
         roi_boxes:torch.Tensor,    #(N,max_num_rois,4)
         roi_features:torch.Tensor,  #(N,max_num_rois,roi_features_dim)
+        max_num_rois:int,   #入力するRoIの最大数
         output_hidden_states:bool=None,
         return_dict:bool=None):
-        embeddings=self.__create_embeddings(input_ids,roi_boxes,roi_features)
+        embeddings=self.__create_embeddings(input_ids,roi_boxes,roi_features,max_num_rois)
 
         #Todo: とりあえずattention_maskはすべて1
         attention_mask=torch.ones(input_ids.size(0),BERT_MAX_SEQ_LENGTH,dtype=torch.long).to(self.device)
@@ -169,7 +169,6 @@ class ImageBertForMultipleChoice(BertPreTrainedModel):
         self,
         config:BertConfig,
         roi_features_dim:int=1024,  #RoI特徴量の次元
-        max_num_rois:int=100,   #入力するRoIの最大数
         image_width:int=256,    #元画像の幅
         image_height:int=256,   #元画像の高さ
         logger:logging.Logger=default_logger
@@ -179,7 +178,6 @@ class ImageBertForMultipleChoice(BertPreTrainedModel):
         self.imbert=ImageBertModel(
             config,
             roi_features_dim=roi_features_dim,
-            max_num_rois=max_num_rois,
             image_width=image_width,
             image_height=image_height,
             logger=logger
@@ -188,9 +186,6 @@ class ImageBertForMultipleChoice(BertPreTrainedModel):
         self.classifier=nn.Linear(config.hidden_size,1)
 
         self.init_weights()
-
-    def load_pretrained_weights(self,bert_model_dir:str):
-        self.imbert.from_pretrained(bert_model_dir)
 
     def to(self,device:torch.device):
         super().to(device)
@@ -205,6 +200,7 @@ class ImageBertForMultipleChoice(BertPreTrainedModel):
         roi_boxes:torch.Tensor,    #(N,num_choices,max_num_rois,4)
         roi_features:torch.Tensor,  #(N,num_choices,max_num_rois,roi_features_dim)
         labels:torch.Tensor,
+        max_num_rois:int,   #入力するRoIの最大数
         output_hidden_states:bool=None,
         return_dict:bool=None):
         num_choices=input_ids.size(1)
@@ -216,6 +212,7 @@ class ImageBertForMultipleChoice(BertPreTrainedModel):
             input_ids,
             roi_boxes,
             roi_features,
+            max_num_rois,
             output_hidden_states=output_hidden_states,
             return_dict=return_dict
         )
