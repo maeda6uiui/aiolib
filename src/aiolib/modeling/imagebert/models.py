@@ -45,13 +45,12 @@ class ImageBertModel(BertModel):
         #RoIのToken Type IDは1
         self.roi_token_type_ids=torch.ones(BERT_MAX_SEQ_LENGTH,dtype=torch.long)
 
-        self.wh_tensor=torch.empty(max_num_rois,5)  #(RoIの)Position Embedding作成に使用する。
-        for i in range(max_num_rois):
-            self.wh_tensor[i,0]=image_width
-            self.wh_tensor[i,1]=image_height
-            self.wh_tensor[i,2]=image_width
-            self.wh_tensor[i,3]=image_height
-            self.wh_tensor[i,4]=image_width*image_height
+        self.wh_tensor=torch.empty(5)  #(RoIの)Position Embedding作成に使用する。
+        self.wh_tensor[0]=image_width
+        self.wh_tensor[1]=image_height
+        self.wh_tensor[2]=image_width
+        self.wh_tensor[3]=image_height
+        self.wh_tensor[4]=image_width*image_height
 
         self.init_weights()
 
@@ -80,6 +79,8 @@ class ImageBertModel(BertModel):
         layer_norm=self.embeddings.LayerNorm
         dropout=self.embeddings.dropout
 
+        batch_size=input_ids.size(0)
+
         v_position_embeddings=position_embeddings(self.position_ids)
         v_text_token_type_ids_embeddings=token_type_ids_embeddings(self.text_token_type_ids)
         v_roi_token_type_ids_embeddings=token_type_ids_embeddings(self.roi_token_type_ids)
@@ -88,24 +89,23 @@ class ImageBertModel(BertModel):
         v_word_embeddings=word_embeddings(input_ids)    #(N,BERT_MAX_SEQ_LENGTH,hidden_size)
 
         #=== RoIのEmbeddingを作成する。 ===
-        roi_features=roi_features.view(-1,self.roi_features_dim)    #(N*max_num_rois,roi_features_dim)
-        roi_features_embeddings=self.fc_roi_features(roi_features)  #(N*max_num_rois,hidden_size)
-        roi_features_embeddings=roi_features_embeddings.view(-1,self.max_num_rois,self.config.hidden_size)
+        roi_features_embeddings=self.fc_roi_features(roi_features)
         #(N,max_num_rois,hidden_size)
 
         #RoIの座標から(RoIの)Position Embeddingを作成する。
-        roi_position_embeddings=torch.empty(self.max_num_rois,5).to(self.device)
-        for i in range(self.max_num_rois):
-            x_tl=roi_boxes[i,0]
-            y_tl=roi_boxes[i,1]
-            x_br=roi_boxes[i,2]
-            y_br=roi_boxes[i,3]
+        roi_position_embeddings=torch.empty(batch_size,self.max_num_rois,5).to(self.device)
+        for i in range(batch_size):
+            for j in range(self.max_num_rois):
+                x_tl=roi_boxes[i,j,0]
+                y_tl=roi_boxes[i,j,1]
+                x_br=roi_boxes[i,j,2]
+                y_br=roi_boxes[i,j,3]
 
-            roi_position_embeddings[i,0]=x_tl
-            roi_position_embeddings[i,1]=y_tl
-            roi_position_embeddings[i,2]=x_br
-            roi_position_embeddings[i,3]=y_br
-            roi_position_embeddings[i,4]=(x_br-x_tl)*(y_br-y_tl)
+                roi_position_embeddings[i,j,0]=x_tl
+                roi_position_embeddings[i,j,1]=y_tl
+                roi_position_embeddings[i,j,2]=x_br
+                roi_position_embeddings[i,j,3]=y_br
+                roi_position_embeddings[i,j,4]=(x_br-x_tl)*(y_br-y_tl)
 
         roi_position_embeddings=torch.div(roi_position_embeddings,self.wh_tensor)
 
@@ -126,7 +126,6 @@ class ImageBertModel(BertModel):
         #(BERT_MAX_SEQ_LENGTH,hidden_size)
 
         #Position EmbeddingとToken Type ID EmbeddingをExpandする。
-        batch_size=input_ids.size(0)
         v_position_embeddings=v_position_embeddings.expand(batch_size,BERT_MAX_SEQ_LENGTH,-1)
         #(N,BERT_MAX_SEQ_LENGTH,hidden_size)
         v_token_type_ids_embeddings=v_token_type_ids_embeddings.expand(batch_size,BERT_MAX_SEQ_LENGTH,-1)
@@ -210,8 +209,8 @@ class ImageBertForMultipleChoice(BertPreTrainedModel):
         return_dict:bool=None):
         num_choices=input_ids.size(1)
         input_ids=input_ids.view(-1,input_ids.size(-1)) #(N*num_choices,BERT_MAX_SEQ_LENGTH)
-        roi_boxes=roi_boxes.view(-1,roi_boxes.size(-1)) #(N*num_choices,max_num_rois,4)
-        roi_features=roi_features.view(-1,roi_features.size(-1))    #(N*num_choices,max_num_rois,roi_features_dim)
+        roi_boxes=roi_boxes.view(-1,roi_boxes.size(-2),roi_boxes.size(-1)) #(N*num_choices,max_num_rois,4)
+        roi_features=roi_features.view(-1,roi_features.size(-2),roi_features.size(-1))    #(N*num_choices,max_num_rois,roi_features_dim)
 
         outputs=self.imbert(
             input_ids,
