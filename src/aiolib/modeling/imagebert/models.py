@@ -88,8 +88,7 @@ class ImageBertModel(BertModel):
         input_ids:torch.Tensor, #(N,BERT_MAX_SEQ_LENGTH)
         roi_boxes:torch.Tensor, #(N,max_num_rois,4)
         roi_features:torch.Tensor,   #(N,max_num_rois,roi_features_dim)
-        max_num_rois:int,
-    )->torch.Tensor:
+        max_num_rois:int)->torch.Tensor:
         """
         入力Embeddingを作成する。
         """
@@ -164,6 +163,36 @@ class ImageBertModel(BertModel):
 
         return embeddings
 
+    def __create_attention_mask(
+        self,
+        input_ids:torch.Tensor, #(N,BERT_MAX_SEQ_LENGTH)
+        roi_boxes:torch.Tensor, #(N,max_num_rois,4)
+        max_num_rois:int)->torch.Tensor:
+        """
+        attention_maskを作成する。
+        """
+        #テキスト部分
+        text_attention_mask=(input_ids!=0).long().to(self.device)
+        
+        #RoI部分
+        batch_size=roi_boxes.size(0)
+        roi_attention_mask=torch.empty(batch_size,max_num_rois,dtype=torch.long).to(self.device)
+        for i in range(batch_size):
+            for j in range(max_num_rois):
+                roi_box=roi_boxes[i,j]  #(4)
+
+                #0ベクトルならそのRoIは存在しないので、attention_mask=0
+                if torch.all(roi_box<1.0e-8):
+                    roi_attention_mask[i,j]=0
+                else:
+                    roi_attention_mask[i,j]=1
+
+        #テキスト部分とRoI部分のAttention Maskを結合する。
+        text_attention_mask=text_attention_mask[:,:BERT_MAX_SEQ_LENGTH-max_num_rois]
+        attention_mask=torch.cat([text_attention_mask,roi_attention_mask],dim=1)
+
+        return attention_mask
+
     def forward(
         self,
         input_ids:torch.Tensor, #(N,BERT_MAX_SEQ_LENGTH)
@@ -173,9 +202,7 @@ class ImageBertModel(BertModel):
         output_hidden_states:bool=None,
         return_dict:bool=None):
         embeddings=self.__create_embeddings(input_ids,roi_boxes,roi_features,max_num_rois)
-
-        #Todo: とりあえずattention_maskはすべて1
-        attention_mask=torch.ones(input_ids.size(0),BERT_MAX_SEQ_LENGTH,dtype=torch.long).to(self.device)
+        attention_mask=self.__create_attention_mask(input_ids,roi_boxes,max_num_rois)
 
         return_dict=return_dict if return_dict is not None else self.config.use_return_dict
         ret=super().forward(
