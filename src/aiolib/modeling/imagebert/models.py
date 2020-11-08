@@ -80,6 +80,8 @@ class ImageBertModel(BertModel):
         self.text_token_type_ids=self.text_token_type_ids.to(device)
         self.roi_token_type_ids=self.roi_token_type_ids.to(device)
         self.wh_tensor=self.wh_tensor.to(device)
+        if self.sep_embedding is not None:
+            self.sep_embedding=self.sep_embedding.to(device)
 
     def __create_embeddings(
         self,
