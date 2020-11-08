@@ -135,11 +135,14 @@ class ImageBertModel(BertModel):
 
         #=== テキストEmbeddingとRoI Embeddingを結合する。
         trunc_word_embeddings=v_word_embeddings[:,:BERT_MAX_SEQ_LENGTH-max_num_rois,:]
-        if self.sep_embedding is not None:
-            trunc_word_embeddings[:,BERT_MAX_SEQ_LENGTH-max_num_rois-1]=self.sep_embedding.detach()
 
         text_roi_embeddings=torch.cat([trunc_word_embeddings,roi_embeddings],dim=1)
         #(N,BERT_MAX_SEQ_LENGTH,hidden_size)
+
+        #[SEP]トークンのEmbeddingを入れる。
+        if self.sep_embedding is not None:
+            text_roi_embeddings[:,BERT_MAX_SEQ_LENGTH-max_num_rois-1]=self.sep_embedding.detach()
+            text_roi_embeddings[:,-1]=self.sep_embedding.detach()
 
         trunc_text_token_type_ids_embeddings=v_text_token_type_ids_embeddings[:BERT_MAX_SEQ_LENGTH-max_num_rois]
         trunc_roi_token_type_ids_embeddings=v_roi_token_type_ids_embeddings[BERT_MAX_SEQ_LENGTH-max_num_rois:]
