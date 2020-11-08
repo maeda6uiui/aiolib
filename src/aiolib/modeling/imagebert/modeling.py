@@ -7,6 +7,8 @@ import numpy as np
 from torch.utils.data import DataLoader,TensorDataset
 from transformers import(
     BertConfig,
+    BertJapaneseTokenizer,
+    BertModel,
     AdamW,
     get_linear_schedule_with_warmup
 )
@@ -198,6 +200,7 @@ def train(
     dataloader:DataLoader,
     max_num_rois:int=100,
     roi_features_dim:int=1024,
+    sep_embedding:torch.Tensor=None,
     device:torch.device=default_device,
     logger:logging.Logger=default_logger,
     logging_steps:int=100):
@@ -234,7 +237,8 @@ def train(
             "roi_boxes":roi_boxes,
             "roi_features":roi_features,
             "labels":bert_inputs["labels"],
-            "max_num_rois":max_num_rois
+            "max_num_rois":max_num_rois,
+            "sep_embedding":sep_embedding
         }
 
         # Initialize gradiants
@@ -271,6 +275,7 @@ def evaluate(
     dataloader:DataLoader,
     max_num_rois:int=100,
     roi_features_dim:int=1024,
+    sep_embedding:torch.Tensor=None,
     device:torch.device=default_device):
     """
     モデルの評価を行う。
@@ -310,7 +315,8 @@ def evaluate(
                 "roi_boxes":roi_boxes,
                 "roi_features":roi_features,
                 "labels":bert_inputs["labels"],
-                "max_num_rois":max_num_rois
+                "max_num_rois":max_num_rois,
+                "sep_embedding":sep_embedding
             }
 
             outputs = classifier_model(**classifier_inputs)
@@ -374,6 +380,7 @@ class ImageBertModeler(object):
 
         self.bert_model_dir=bert_model_dir
         self.__create_classifier_model()
+        self.__create_sep_embedding()
 
         self.device=torch.device("cpu") #デフォルトではCPU
 
@@ -391,10 +398,33 @@ class ImageBertModeler(object):
             config=BertConfig.from_json_file(self.bert_model_dir)
             self.classifier_model=ImageBertForMultipleChoice(config)
             self.classifier_model.initialize_from_pretrained(self.bert_model_dir)
+
+    def __create_sep_embedding(self):
+        logger=self.logger
+
+        logger.info("[SEP]トークンのEmbeddingを作成します。")
+
+        tokenizer=None
+        bert_model=None
+        if self.bert_model_dir=="USE_DEFAULT":
+            tokenizer=BertJapaneseTokenizer.from_pretrained("cl-tohoku/bert-base-japanese-whole-word-masking")
+            bert_model=BertModel.from_pretrained("cl-tohoku/bert-base-japanese-whole-word-masking")
+        else:
+            tokenizer=BertJapaneseTokenizer.from_pretrained(self.bert_model_dir)
+            bert_model=BertModel.from_pretrained(self.bert_model_dir)
+
+        tokens=[tokenizer.sep_token]
+        input_ids=tokenizer.convert_tokens_to_ids(tokens)
+        input_ids=torch.tensor([input_ids])
+
+        word_embeddings=bert_model.get_input_embeddings()
+        self.sep_embedding=word_embeddings(input_ids)
+        self.sep_embedding=torch.squeeze(self.sep_embedding)
         
     def to(self,device:torch.device):
         self.device=device
         self.classifier_model.to(device)
+        self.sep_embedding=self.sep_embedding.to(device)
 
     def train_and_eval(
         self,
@@ -439,6 +469,7 @@ class ImageBertModeler(object):
                 scheduler,
                 train_dataloader,
                 max_num_rois=self.max_num_rois,
+                sep_embedding=self.sep_embedding,
                 device=self.device,
                 logger=logger,
                 logging_steps=logging_steps
@@ -457,6 +488,7 @@ class ImageBertModeler(object):
                 self.roi_features_dir,
                 self.dev_dataloader,
                 max_num_rois=self.max_num_rois,
+                sep_embedding=self.sep_embedding,
                 device=self.device
             )
             accuracy=res["accuracy"]*100.0
@@ -506,6 +538,7 @@ class ImageBertTester(object):
 
         self.bert_model_dir=bert_model_dir
         self.__create_classifier_model()
+        self.__create_sep_embedding()
 
         self.device=torch.device("cpu") #デフォルトではCPU
 
@@ -523,6 +556,28 @@ class ImageBertTester(object):
             config=BertConfig.from_json_file(self.bert_model_dir)
             self.classifier_model=ImageBertForMultipleChoice(config)
             self.classifier_model.initialize_from_pretrained(self.bert_model_dir)
+
+    def __create_sep_embedding(self):
+        logger=self.logger
+
+        logger.info("[SEP]トークンのEmbeddingを作成します。")
+
+        tokenizer=None
+        bert_model=None
+        if self.bert_model_dir=="USE_DEFAULT":
+            tokenizer=BertJapaneseTokenizer.from_pretrained("cl-tohoku/bert-base-japanese-whole-word-masking")
+            bert_model=BertModel.from_pretrained("cl-tohoku/bert-base-japanese-whole-word-masking")
+        else:
+            tokenizer=BertJapaneseTokenizer.from_pretrained(self.bert_model_dir)
+            bert_model=BertModel.from_pretrained(self.bert_model_dir)
+
+        tokens=[tokenizer.sep_token]
+        input_ids=tokenizer.convert_tokens_to_ids(tokens)
+        input_ids=torch.tensor([input_ids])
+
+        word_embeddings=bert_model.get_input_embeddings()
+        self.sep_embedding=word_embeddings(input_ids)
+        self.sep_embedding=torch.squeeze(self.sep_embedding)
 
     def to(self,device:torch.device):
         self.device=device
@@ -549,6 +604,7 @@ class ImageBertTester(object):
             self.roi_features_dir,
             self.test_dataloader,
             max_num_rois=self.max_num_rois,
+            sep_embedding=self.sep_embedding,
             device=self.device
         )
         accuracy=res["accuracy"]*100.0
