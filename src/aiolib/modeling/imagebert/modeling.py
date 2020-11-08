@@ -395,7 +395,6 @@ class ImageBertModeler(object):
     def to(self,device:torch.device):
         self.device=device
         self.classifier_model.to(device)
-        self.sep_embedding=self.sep_embedding.to(device)
 
     def train_and_eval(
         self,
