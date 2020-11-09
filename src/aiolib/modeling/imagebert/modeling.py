@@ -10,10 +10,9 @@ from transformers import(
     AdamW,
     get_linear_schedule_with_warmup
 )
-
 from typing import List,Tuple
 
-from .models import ImageBertForMultipleChoice
+from imagebert.models import ImageBertForMultipleChoice
 
 sys.path.append("../../")
 from util import hashing
@@ -380,17 +379,10 @@ class ImageBertModeler(object):
     def __create_classifier_model(self):
         logger=self.logger
 
-        self.classifier_model=None
-        if self.bert_model_dir=="USE_DEFAULT":
-            logger.info("デフォルトのBERTモデルを用いて分類器のパラメータを初期化します。")
-            config=BertConfig.from_pretrained("cl-tohoku/bert-base-japanese-whole-word-masking")
-            self.classifier_model=ImageBertForMultipleChoice(config)
-            self.classifier_model.initialize_from_pretrained("cl-tohoku/bert-base-japanese-whole-word-masking")
-        else:
-            logger.info("{}からBERTモデルを読み込んで分類器のパラメータを初期化します。".format(self.bert_model_dir))
-            config=BertConfig.from_json_file(self.bert_model_dir)
-            self.classifier_model=ImageBertForMultipleChoice(config)
-            self.classifier_model.initialize_from_pretrained(self.bert_model_dir)
+        logger.info("{}からBERTモデルを読み込んでClassifierのパラメータを初期化します。")
+        config=BertConfig.from_pretrained(self.bert_model_dir)
+        self.classifier_model=ImageBertForMultipleChoice(config)
+        self.classifier_model.initialize_from_pretrained(self.bert_model_dir)
 
     def to(self,device:torch.device):
         self.device=device
