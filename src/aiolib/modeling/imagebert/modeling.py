@@ -377,7 +377,7 @@ class ImageBertModeler(object):
     def __create_classifier_model(self):
         logger=self.logger
 
-        logger.info("{}からBERTモデルを読み込んでClassifierのパラメータを初期化します。".format(self.bert_model_dir))
+        logger.info("{}から事前学習済みの重みを読み込みます。".format(self.bert_model_dir))
         config=BertConfig.from_pretrained(self.bert_model_dir)
         self.classifier_model=ImageBertForMultipleChoice(config)
         self.classifier_model.setup_image_bert(self.bert_model_dir)
@@ -502,7 +502,7 @@ class ImageBertTester(object):
     def __create_classifier_model(self):
         logger=self.logger
 
-        logger.info("{}からBERTモデルを読み込んでClassifierのパラメータを初期化します。")
+        logger.info("{}から事前学習済みの重みを読み込みます。".format(self.bert_model_dir))
         config=BertConfig.from_pretrained(self.bert_model_dir)
         self.classifier_model=ImageBertForMultipleChoice(config)
         self.classifier_model.setup_image_bert(self.bert_model_dir)

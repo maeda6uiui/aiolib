@@ -169,7 +169,7 @@ class BaselineModeler(object):
     def __create_classifier_model(self):
         logger=self.logger
 
-        logger.info("{}からBERTモデルを読み込んでClassifierのパラメータを初期化します。".format(self.bert_model_dir))
+        logger.info("{}から事前学習済みの重みを読み込みます。".format(self.bert_model_dir))
         self.classifier_model=BertForMultipleChoice.from_pretrained(self.bert_model_dir)
 
     def to(self,device:torch.device):
@@ -260,7 +260,7 @@ class BaselineTester(object):
         test_dataset=create_dataset(test_input_dir,num_examples=-1,num_options=20)
         self.test_dataloader=DataLoader(test_dataset,batch_size=4,shuffle=False)
 
-        logger.info("{}からBERTモデルを読み込んでClassifierのパラメータを初期化します。".format(bert_model_dir))
+        logger.info("{}から事前学習済みの重みを読み込みます。".format(bert_model_dir))
         self.classifier_model=BertForMultipleChoice.from_pretrained(bert_model_dir)
         
         self.device=torch.device("cpu") #デフォルトではCPU
