@@ -382,7 +382,7 @@ class ImageBertModeler(object):
         logger.info("{}からBERTモデルを読み込んでClassifierのパラメータを初期化します。".format(self.bert_model_dir))
         config=BertConfig.from_pretrained(self.bert_model_dir)
         self.classifier_model=ImageBertForMultipleChoice(config)
-        self.classifier_model.initialize_from_pretrained(self.bert_model_dir)
+        self.classifier_model.setup_image_bert(self.bert_model_dir)
 
     def to(self,device:torch.device):
         self.device=device
@@ -507,7 +507,7 @@ class ImageBertTester(object):
         logger.info("{}からBERTモデルを読み込んでClassifierのパラメータを初期化します。")
         config=BertConfig.from_pretrained(self.bert_model_dir)
         self.classifier_model=ImageBertForMultipleChoice(config)
-        self.classifier_model.initialize_from_pretrained(self.bert_model_dir)
+        self.classifier_model.setup_image_bert(self.bert_model_dir)
 
     def to(self,device:torch.device):
         self.device=device
