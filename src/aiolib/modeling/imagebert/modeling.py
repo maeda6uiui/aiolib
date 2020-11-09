@@ -87,7 +87,7 @@ def __get_roi_boxes_and_features(
     roi_features_dir:str,
     device:torch.device=default_device)->Tuple[List[torch.Tensor],List[torch.Tensor]]:
     """
-    各選択肢に対応するRoIの矩形領域情報をファイルから読み込む。
+    各選択肢に対応するRoIの矩形領域の座標データおよび特徴量をファイルから読み込む。
 
     出力Tensorのサイズ
     (num_rois,roi_features_dim)
@@ -102,7 +102,7 @@ def __get_roi_boxes_and_features(
         roi_boxes_filepath=os.path.join(roi_boxes_dir,title_hash+".pt")
         roi_features_filepath=os.path.join(roi_features_dir,title_hash+".pt")
 
-        #画像の特徴量が存在する場合 (矩形領域の座標データも存在するはず)
+        #RoIの特徴量が存在する場合 (矩形領域の座標データも存在するはず)
         if os.path.exists(roi_features_filepath):
             roi_boxes=torch.load(roi_boxes_filepath,map_location=device).to(device)
             roi_features=torch.load(roi_features_filepath,map_location=device).to(device)
