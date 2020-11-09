@@ -35,9 +35,7 @@ class QuestionOptions(object):
     def get(self,index:int):
         return self.options[index]
 
-def load_options_list(list_filepath:str,logger:logging.Logger=default_logger)->List[QuestionOptions]:
-    logger.info("{}から選択肢のリストを読み込みます。".format(list_filepath))
-
+def load_options_list(list_filepath:str)->List[QuestionOptions]:
     with open(list_filepath,"r",encoding="UTF-8") as r:
         lines=r.read().splitlines()
 
