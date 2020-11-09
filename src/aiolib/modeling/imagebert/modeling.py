@@ -153,7 +153,7 @@ def __trim_roi_tensors(
 
     return ret
 
-def create_roi_boxes_and_tensors(
+def create_roi_boxes_and_features(
     options_list:List[QuestionOptions], #N個のQuestionOptionsを含むList
     question_indices:torch.Tensor,  #問題のIndex (N個)
     num_options:int,    #選択肢の数
@@ -215,7 +215,7 @@ def train(
         }
         num_options=bert_inputs["input_ids"].size(1)
         
-        roi_boxes,roi_features=create_roi_boxes_and_tensors(
+        roi_boxes,roi_features=create_roi_boxes_and_features(
             options_list,
             bert_inputs["indices"],
             num_options,
@@ -291,7 +291,7 @@ def evaluate(
             }
             num_options=bert_inputs["input_ids"].size(1)
         
-            roi_boxes,roi_features=create_roi_boxes_and_tensors(
+            roi_boxes,roi_features=create_roi_boxes_and_features(
                 options_list,
                 bert_inputs["indices"],
                 num_options,
