@@ -154,7 +154,7 @@ def __trim_roi_tensors(
     return ret
 
 def create_roi_boxes_and_features(
-    options_list:List[QuestionOptions], #N個のQuestionOptionsを含むList
+    options_list:List[QuestionOptions], #すべてのQuestionOptionsを含むList
     question_indices:torch.Tensor,  #問題のIndex (N個)
     num_options:int,    #選択肢の数
     roi_boxes_dir:str,
