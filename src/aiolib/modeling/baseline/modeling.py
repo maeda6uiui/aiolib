@@ -162,20 +162,15 @@ class BaselineModeler(object):
         self.dev_dataloader=DataLoader(dev_dataset,batch_size=4,shuffle=False)
 
         self.bert_model_dir=bert_model_dir
-        self.__create_classifier_model(bert_model_dir)
+        self.__create_classifier_model()
 
         self.device=torch.device("cpu") #デフォルトではCPU
 
-    def __create_classifier_model(self,bert_model_dir:str):
+    def __create_classifier_model(self):
         logger=self.logger
 
-        self.classifier_model=None
-        if bert_model_dir=="USE_DEFAULT":
-            logger.info("デフォルトのBERTモデルを用いて分類器のパラメータを初期化します。")
-            self.classifier_model=BertForMultipleChoice.from_pretrained("cl-tohoku/bert-base-japanese-whole-word-masking")
-        else:
-            logger.info("{}からBERTモデルを読み込んで分類器のパラメータを初期化します。".format(bert_model_dir))
-            self.classifier_model=BertForMultipleChoice.from_pretrained(bert_model_dir)
+        logger.info("{}からBERTモデルを読み込んでClassifierのパラメータを初期化します。".format(self.bert_model_dir))
+        self.classifier_model=BertForMultipleChoice.from_pretrained(self.bert_model_dir)
 
     def to(self,device:torch.device):
         self.device=device
@@ -196,7 +191,7 @@ class BaselineModeler(object):
         logger.info("学習率: {}".format(lr))
 
         if init_parameters:
-            self.__create_classifier_model(self.bert_model_dir)
+            self.__create_classifier_model()
 
         num_iterations=len(self.train_dataset)//train_batch_size
         total_steps=num_iterations*num_epochs
@@ -265,13 +260,8 @@ class BaselineTester(object):
         test_dataset=create_dataset(test_input_dir,num_examples=-1,num_options=20)
         self.test_dataloader=DataLoader(test_dataset,batch_size=4,shuffle=False)
 
-        self.classifier_model=None
-        if bert_model_dir=="USE_DEFAULT":
-            logger.info("デフォルトのBERT Pre-trainedモデルを読み込みます。")
-            self.classifier_model=BertForMultipleChoice.from_pretrained("cl-tohoku/bert-base-japanese-whole-word-masking")
-        else:
-            logger.info("{}からBERTモデルを読み込みます。".format(bert_model_dir))
-            self.classifier_model=BertForMultipleChoice.from_pretrained(bert_model_dir)
+        logger.info("{}からBERTモデルを読み込んでClassifierのパラメータを初期化します。".format(bert_model_dir))
+        self.classifier_model=BertForMultipleChoice.from_pretrained(bert_model_dir)
         
         self.device=torch.device("cpu") #デフォルトではCPU
 
