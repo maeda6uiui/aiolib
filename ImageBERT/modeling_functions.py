@@ -10,7 +10,7 @@ from typing import Dict,List,Tuple
 
 sys.path.append(".")
 from model import ImageBertForMultipleChoice
-import imagebert.utils as imbutil
+import imagebert.utils as imbutils
 
 def load_question_option_hashes(qoh_filepath:str)->Dict[int,List[str]]:
     """
@@ -87,8 +87,8 @@ def create_roi_boxes_and_features(
             roi_boxes=None
             roi_features=None
             if os.path.exists(roi_boxes_filepath):
-                roi_boxes=imbutil.load_roi_boxes_from_file(roi_boxes_filepath,max_num_rois)
-                roi_features=imbutil.load_roi_features_from_file(roi_features_filepath,max_num_rois)
+                roi_boxes=imbutils.load_roi_boxes_from_file(roi_boxes_filepath,max_num_rois)
+                roi_features=imbutils.load_roi_features_from_file(roi_features_filepath,max_num_rois)
             #存在しない場合には0ベクトルを作成する。
             else:
                 roi_boxes=torch.zeros(max_num_rois,4)
