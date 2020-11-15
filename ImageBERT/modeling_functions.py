@@ -83,8 +83,17 @@ def create_roi_boxes_and_features(
             roi_boxes_filepath=os.path.join(roi_boxes_dir,option_hash+".pt")
             roi_features_filepath=os.path.join(roi_features_dir,option_hash+".pt")
 
-            roi_boxes=imbutil.load_roi_boxes_from_file(roi_boxes_filepath,max_num_rois)
-            roi_features=imbutil.load_roi_features_from_file(roi_features_filepath,max_num_rois)
+            #RoI情報が存在する場合にはそれを読み込む。
+            roi_boxes=None
+            roi_features=None
+            if os.path.exists(roi_boxes_filepath):
+                roi_boxes=imbutil.load_roi_boxes_from_file(roi_boxes_filepath,max_num_rois)
+                roi_features=imbutil.load_roi_features_from_file(roi_features_filepath,max_num_rois)
+            #存在しない場合には0ベクトルを作成する。
+            else:
+                roi_boxes=torch.zeros(max_num_rois,4)
+                roi_features=torch.zeros(max_num_rois,roi_features_dim)
+
             ret_roi_boxes[i,j]=roi_boxes
             ret_roi_features[i,j]=roi_features
 
