@@ -55,6 +55,10 @@ def main(args):
 
     logger.info("RoI情報は以下のディレクトリから読み込まれます。")
     logger.info("roi_boxes_dir: {}\troi_features_dir: {}".format(roi_boxes_dir,roi_features_dir))
+    if os.path.exists(roi_boxes_dir)==False:
+        logger.warn("roi_boxes_dirは存在しません。")
+    if os.path.exists(roi_features_dir)==False:
+        logger.warn("roi_features_dirは存在しません。")
 
     logger.info("ImageBERTForMultipleChoiceモデルを作成します。")
     config=BertConfig.from_pretrained(bert_model_dir)
