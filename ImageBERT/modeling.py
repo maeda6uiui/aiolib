@@ -30,6 +30,7 @@ def main(args):
     train_qohs_filepath:str=args.train_qohs_filepath
     dev_qohs_filepath:str=args.dev_qohs_filepath
     bert_model_dir:str=args.bert_model_dir
+    imagebert_checkpoint_filepath:str=args.imagebert_checkpoint_filepath
     roi_boxes_dir:str=args.roi_boxes_dir
     roi_features_dir:str=args.roi_features_dir
     max_num_rois:int=args.max_num_rois
@@ -60,6 +61,11 @@ def main(args):
     classifier_model=ImageBertForMultipleChoice(config)
     classifier_model.setup_image_bert(bert_model_dir)
     classifier_model.to(device)
+
+    if imagebert_checkpoint_filepath is not None:
+        logger.info("{}からImageBERTのチェックポイントを読み込みます。".format(imagebert_checkpoint_filepath))
+        parameters=torch.load(imagebert_checkpoint_filepath,map_location=device)
+        classifier_model.load_state_dict(parameters)
 
     num_iterations=len(train_dataset)//train_batch_size
     total_steps=num_iterations*num_epochs
@@ -123,6 +129,7 @@ if __name__=="__main__":
     parser.add_argument("--train_qohs_filepath",type=str)
     parser.add_argument("--dev_qohs_filepath",type=str)
     parser.add_argument("--bert_model_dir",type=str)
+    parser.add_argument("--imagebert_checkpoint_filepath",type=str)
     parser.add_argument("--roi_boxes_dir",type=str)
     parser.add_argument("--roi_features_dir",type=str)
     parser.add_argument("--max_num_rois",type=int)
