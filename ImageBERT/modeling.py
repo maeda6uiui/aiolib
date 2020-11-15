@@ -39,7 +39,7 @@ def main(args):
     num_epochs:int=args.num_epochs
     lr:float=args.lr
     result_save_dir:str=args.result_save_dir
-    logging_steps:int=args.logging_steps
+    train_logging_steps:int=args.train_logging_steps
 
     logger.info("{}から訓練用データセットを作成します。".format(train_input_dir))
     train_dataset=mf.create_dataset(train_input_dir,num_examples=-1,num_options=4)
@@ -97,7 +97,7 @@ def main(args):
             roi_features_dim,
             device,
             logger,
-            logging_steps
+            train_logging_steps
         )
         logger.info("訓練時の損失平均値: {}".format(mean_loss))
 
@@ -138,7 +138,7 @@ if __name__=="__main__":
     parser.add_argument("--num_epochs",type=int)
     parser.add_argument("--lr",type=float)
     parser.add_argument("--result_save_dir",type=str)
-    parser.add_argument("--logging_steps",type=int)
+    parser.add_argument("--train_logging_steps",type=int)
     args=parser.parse_args()
 
     main(args)
