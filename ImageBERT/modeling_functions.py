@@ -75,7 +75,7 @@ def create_roi_boxes_and_features(
     ret_roi_features=torch.empty(batch_size,num_options,max_num_rois,roi_features_dim)
 
     for i in range(batch_size):
-        question_index=question_indices[i]
+        question_index=question_indices[i].item()
         qoh=qohs[question_index]
 
         for j in range(num_options):

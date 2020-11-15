@@ -65,7 +65,7 @@ def main(args):
     if imagebert_checkpoint_filepath is not None:
         logger.info("{}からImageBERTのチェックポイントを読み込みます。".format(imagebert_checkpoint_filepath))
         parameters=torch.load(imagebert_checkpoint_filepath,map_location=device)
-        classifier_model.load_state_dict(parameters)
+        classifier_model.load_state_dict(parameters,strict=False)
 
     num_iterations=len(train_dataset)//train_batch_size
     total_steps=num_iterations*num_epochs
