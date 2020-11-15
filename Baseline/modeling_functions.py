@@ -3,10 +3,7 @@ import os
 import torch
 import numpy as np
 from tqdm import tqdm
-from torch.utils.data import(
-    DataLoader,
-    TensorDataset
-)
+from torch.utils.data import DataLoader,TensorDataset
 from transformers import BertForMultipleChoice
 
 def create_dataset(input_dir:str,num_examples:int,num_options:int)->TensorDataset:
