@@ -151,6 +151,7 @@ def train(
         outputs = classifier_model(**classifier_inputs)
         loss = outputs[0]
         # Backward propagation
+        loss=loss.mean()
         loss.backward()
         nn.utils.clip_grad_norm_(classifier_model.parameters(), 1.0)
         # Update parameters
@@ -220,6 +221,7 @@ def evaluate(
 
             outputs = classifier_model(**classifier_inputs)
             loss, logits = outputs[:2]
+            loss=loss.mean()
             
             count_steps+=1
             total_loss+=loss.item()

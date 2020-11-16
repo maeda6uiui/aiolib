@@ -43,6 +43,17 @@ class ImageBertForMultipleChoice(BertPreTrainedModel):
         roi_features:torch.Tensor=None,  #(N,num_choices,max_num_rois,roi_features_dim)
         output_hidden_states:bool=None,
         return_dict:bool=None):
+        device=self.classifier.weight.device
+
+        input_ids=input_ids.to(device)
+        labels=labels.to(device)
+        if token_type_ids is not None:
+            token_type_ids=token_type_ids.to(device)
+        if roi_boxes is not None:
+            roi_boxes=roi_boxes.to(device)
+        if roi_features is not None:
+            roi_features=roi_features.to(device)
+
         num_choices=input_ids.size(1)
         input_ids=input_ids.view(-1,input_ids.size(-1)) #(N*num_choices,BERT_MAX_SEQ_LENGTH)
         roi_boxes=roi_boxes.view(-1,roi_boxes.size(-2),roi_boxes.size(-1)) #(N*num_choices,max_num_rois,4)

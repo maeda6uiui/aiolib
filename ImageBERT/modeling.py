@@ -8,6 +8,7 @@ import os
 import random
 import sys
 import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader
 from transformers import(
     BertConfig,
@@ -50,6 +51,7 @@ def main(args):
     lr:float=args.lr
     result_save_dir:str=args.result_save_dir
     train_logging_steps:int=args.train_logging_steps
+    use_multi_gpus:bool=args.use_multi_gpus
 
     logger.info("バッチサイズ: {}".format(train_batch_size))
     logger.info("エポック数: {}".format(num_epochs))
@@ -84,6 +86,11 @@ def main(args):
         logger.info("{}からImageBERTのチェックポイントを読み込みます。".format(imagebert_checkpoint_filepath))
         parameters=torch.load(imagebert_checkpoint_filepath,map_location=device)
         classifier_model.load_state_dict(parameters,strict=False)
+
+    if use_multi_gpus:
+        logger.info("複数のGPUを使用します。")
+        classifier_model=nn.DataParallel(classifier_model)
+        torch.backends.cudnn.benchmark=True
 
     num_iterations=len(train_dataset)//train_batch_size
     total_steps=num_iterations*num_epochs
@@ -157,6 +164,7 @@ if __name__=="__main__":
     parser.add_argument("--lr",type=float)
     parser.add_argument("--result_save_dir",type=str)
     parser.add_argument("--train_logging_steps",type=int)
+    parser.add_argument("--use_multi_gpus",action="store_true")
     args=parser.parse_args()
 
     main(args)
