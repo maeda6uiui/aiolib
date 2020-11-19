@@ -3,7 +3,9 @@
 """
 import argparse
 import logging
+import numpy as np
 import os
+import random
 import sys
 import torch
 from torch.utils.data import DataLoader
@@ -18,6 +20,14 @@ logger=logging.getLogger(__name__)
 logger.setLevel(level=logging.INFO)
 
 device=torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+#シードを設定する。
+SEED=42
+random.seed(SEED)
+np.random.seed(SEED)
+torch.manual_seed(SEED)
+torch.cuda.manual_seed_all(SEED)
+torch.backends.cudnn.deterministic=True
 
 def main(args):
     test_input_dir:str=args.test_input_dir
