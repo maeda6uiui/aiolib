@@ -43,6 +43,10 @@ def main(args):
     result_save_dir:str=args.result_save_dir
     train_logging_steps:int=args.train_logging_steps
 
+    logger.info("バッチサイズ: {}".format(train_batch_size))
+    logger.info("エポック数: {}".format(num_epochs))
+    logger.info("学習率: {}".format(lr))
+
     logger.info("{}から訓練用データセットを作成します。".format(train_input_dir))
     train_dataset=mf.create_dataset(train_input_dir,num_examples=-1,num_options=4)
 
