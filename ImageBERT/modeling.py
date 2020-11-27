@@ -9,6 +9,7 @@ import random
 import sys
 import torch
 import torch.nn as nn
+from collections import OrderedDict
 from torch.utils.data import DataLoader
 from transformers import(
     BertConfig,
@@ -34,6 +35,15 @@ np.random.seed(SEED)
 torch.manual_seed(SEED)
 torch.cuda.manual_seed_all(SEED)
 torch.backends.cudnn.deterministic=True
+
+def fix_model_state_dict(state_dict):
+    new_state_dict = OrderedDict()
+    for k, v in state_dict.items():
+        name = k
+        if name.startswith('module.'):
+            name = name[7:]  # remove 'module.' of dataparallel
+        new_state_dict[name] = v
+    return new_state_dict
 
 def main(args):
     train_input_dir:str=args.train_input_dir
@@ -85,6 +95,7 @@ def main(args):
     if imagebert_checkpoint_filepath is not None:
         logger.info("{}からImageBERTのチェックポイントを読み込みます。".format(imagebert_checkpoint_filepath))
         parameters=torch.load(imagebert_checkpoint_filepath,map_location=device)
+        parameters=fix_model_state_dict(parameters)
         classifier_model.load_state_dict(parameters,strict=False)
 
     if use_multi_gpus:
