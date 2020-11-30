@@ -13,6 +13,7 @@ from collections import OrderedDict
 from torch.utils.data import DataLoader
 from transformers import(
     BertConfig,
+    BertJapaneseTokenizer,
     AdamW,
     get_linear_schedule_with_warmup
 )
@@ -62,6 +63,7 @@ def main(args):
     result_save_dir:str=args.result_save_dir
     train_logging_steps:int=args.train_logging_steps
     use_multi_gpus:bool=args.use_multi_gpus
+    no_init_from_pretrained_bert:bool=args.no_init_from_pretrained_bert
 
     logger.info("バッチサイズ: {}".format(train_batch_size))
     logger.info("エポック数: {}".format(num_epochs))
@@ -89,7 +91,12 @@ def main(args):
     logger.info("ImageBERTForMultipleChoiceモデルを作成します。")
     config=BertConfig.from_pretrained(bert_model_dir)
     classifier_model=ImageBertForMultipleChoice(config)
-    classifier_model.setup_image_bert(bert_model_dir)
+    if no_init_from_pretrained_bert:
+        logger.info("ImageBERTのパラメータを事前学習済みのモデルから初期化しません。")
+        tokenizer=BertJapaneseTokenizer.from_pretrained(bert_model_dir)
+        classifier_model.imbert.set_sep_token_id(tokenizer.sep_token_id)
+    else:
+        classifier_model.setup_image_bert(bert_model_dir)
     classifier_model.to(device)
 
     if imagebert_checkpoint_filepath is not None:
@@ -176,6 +183,7 @@ if __name__=="__main__":
     parser.add_argument("--result_save_dir",type=str)
     parser.add_argument("--train_logging_steps",type=int)
     parser.add_argument("--use_multi_gpus",action="store_true")
+    parser.add_argument("--no_init_from_pretrained_bert",action="store_true")
     args=parser.parse_args()
 
     main(args)
