@@ -64,14 +64,14 @@ def main(args):
     train_logging_steps:int=args.train_logging_steps
     use_multi_gpus:bool=args.use_multi_gpus
     no_init_from_pretrained_bert:bool=args.no_init_from_pretrained_bert
-    use_roi_dummy_position:bool=args.use_roi_dummy_position
+    use_roi_seq_position:bool=args.use_roi_seq_position
 
     logger.info("バッチサイズ: {}".format(train_batch_size))
     logger.info("エポック数: {}".format(num_epochs))
     logger.info("学習率: {}".format(lr))
 
-    if use_roi_dummy_position:
-        logger.info("RoIのSequence Positionにはダミーの値を使用します。")
+    if use_roi_seq_position:
+        logger.info("RoIのSequence Positionに昇順の値を使用します。")
 
     logger.info("{}から訓練用データセットを作成します。".format(train_input_dir))
     train_dataset=mf.create_dataset(train_input_dir,num_examples=-1,num_options=4)
@@ -142,7 +142,7 @@ def main(args):
             train_dataloader,
             max_num_rois,
             roi_features_dim,
-            use_roi_dummy_position,
+            use_roi_seq_position,
             device,
             logger,
             train_logging_steps
@@ -164,7 +164,7 @@ def main(args):
             dev_dataloader,
             max_num_rois,
             roi_features_dim,
-            use_roi_dummy_position,
+            use_roi_seq_position,
             result_save_filepath,
             labels_save_filepath,
             device,
@@ -190,7 +190,7 @@ if __name__=="__main__":
     parser.add_argument("--train_logging_steps",type=int)
     parser.add_argument("--use_multi_gpus",action="store_true")
     parser.add_argument("--no_init_from_pretrained_bert",action="store_true")
-    parser.add_argument("--use_roi_dummy_position",action="store_true")
+    parser.add_argument("--use_roi_seq_position",action="store_true")
     args=parser.parse_args()
 
     main(args)

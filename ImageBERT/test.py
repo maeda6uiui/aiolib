@@ -43,6 +43,10 @@ def main(args):
     result_save_dir:str=args.result_save_dir
     test_index_lower_bound:int=args.test_index_lower_bound
     test_index_upper_bound:int=args.test_index_upper_bound
+    use_roi_seq_position:bool=args.use_roi_seq_position
+
+    if use_roi_seq_position:
+        logger.info("RoIのSequence Positionに昇順の値を使用します。")
 
     logger.info("{}からテスト用データローダを作成します。".format(test_input_dir))
     test_dataset=mf.create_dataset(test_input_dir,num_examples=-1,num_options=20)
@@ -87,6 +91,7 @@ def main(args):
             test_dataloader,
             max_num_rois,
             roi_features_dim,
+            use_roi_seq_position,
             result_save_filepath,
             labels_save_filepath,
             device,
@@ -106,6 +111,7 @@ if __name__=="__main__":
     parser.add_argument("--result_save_dir",type=str)
     parser.add_argument("--test_index_lower_bound",type=int)
     parser.add_argument("--test_index_upper_bound",type=int)
+    parser.add_argument("--use_roi_seq_position",action="store_true")
     args=parser.parse_args()
 
     main(args)

@@ -11,7 +11,6 @@ from typing import Dict,List,Tuple
 sys.path.append(".")
 from model import ImageBertForMultipleChoice
 import imagebert.utils as imbutils
-from imagebert.model import BERT_MAX_SEQ_LENGTH
 
 def load_question_option_hashes(qoh_filepath:str)->Dict[int,List[str]]:
     """
@@ -110,7 +109,7 @@ def train(
     dataloader:DataLoader,
     max_num_rois:int,
     roi_features_dim:int,
-    use_roi_dummy_position:bool,
+    use_roi_seq_position:bool,
     device:torch.device,
     logger:logging.Logger,
     logging_steps:int):
@@ -144,10 +143,9 @@ def train(
             "input_ids":input_ids.to(device),
             "roi_boxes":roi_boxes.to(device),
             "roi_features":roi_features.to(device),
-            "labels":labels.to(device)
+            "labels":labels.to(device),
+            "use_roi_seq_position":use_roi_seq_position
         }
-        if use_roi_dummy_position:
-            classifier_inputs["roi_dummy_position"]=BERT_MAX_SEQ_LENGTH-1
 
         # Initialize gradiants
         classifier_model.zero_grad()
@@ -184,7 +182,7 @@ def evaluate(
     dataloader:DataLoader,
     max_num_rois:int,
     roi_features_dim:int,
-    use_roi_dummy_position:bool,
+    use_roi_seq_position:bool,
     device:torch.device):
     """
     モデルの評価を行う。
@@ -221,10 +219,9 @@ def evaluate(
                 "input_ids":input_ids.to(device),
                 "roi_boxes":roi_boxes.to(device),
                 "roi_features":roi_features.to(device),
-                "labels":labels.to(device)
+                "labels":labels.to(device),
+                "use_roi_seq_position":use_roi_seq_position
             }
-            if use_roi_dummy_position:
-                classifier_inputs["roi_dummy_position"]=BERT_MAX_SEQ_LENGTH-1
 
             outputs = classifier_model(**classifier_inputs)
             loss, logits = outputs[:2]
@@ -263,7 +260,7 @@ def evaluate_and_save_result(
     dataloader:DataLoader,
     max_num_rois:int,
     roi_features_dim:int,
-    use_roi_dummy_position:bool,
+    use_roi_seq_position:bool,
     result_save_filepath:str,
     labels_save_filepath:str,
     device:torch.device,
@@ -279,7 +276,7 @@ def evaluate_and_save_result(
         dataloader,
         max_num_rois,
         roi_features_dim,
-        use_roi_dummy_position,
+        use_roi_seq_position,
         device
     )
     accuracy=res["accuracy"]*100.0
