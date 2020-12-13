@@ -42,7 +42,8 @@ class ImageBertForMultipleChoice(BertPreTrainedModel):
         roi_boxes:torch.Tensor=None,    #(N,num_choices,max_num_rois,4)
         roi_features:torch.Tensor=None,  #(N,num_choices,max_num_rois,roi_features_dim)
         output_hidden_states:bool=None,
-        return_dict:bool=None):
+        return_dict:bool=None,
+        roi_dummy_position:int=None):
         device=self.classifier.weight.device
 
         input_ids=input_ids.to(device)
@@ -65,7 +66,8 @@ class ImageBertForMultipleChoice(BertPreTrainedModel):
             roi_boxes=roi_boxes,
             roi_features=roi_features,
             output_hidden_states=output_hidden_states,
-            return_dict=return_dict
+            return_dict=return_dict,
+            roi_dummy_position=roi_dummy_position
         )
 
         pooled_output=outputs[1]
