@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from torch.utils.data import DataLoader,TensorDataset
+from tqdm import tqdm
 from typing import Dict,List,Tuple
 
 sys.path.append(".")
@@ -196,7 +197,7 @@ def evaluate(
     preds = None
     correct_labels = None
 
-    for batch_idx,batch in enumerate(dataloader):
+    for batch_idx,batch in enumerate(tqdm(dataloader)):
         with torch.no_grad():
             batch = tuple(t for t in batch)
             
