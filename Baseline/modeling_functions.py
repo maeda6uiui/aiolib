@@ -92,7 +92,7 @@ def evaluate(
 
     preds=None
     correct_labels=None
-    for batch_idx,batch in tqdm(enumerate(dataloader),total=len(dataloader)):
+    for batch_idx,batch in enumerate(tqdm(dataloader)):
         with torch.no_grad():
             batch = tuple(t for t in batch)
             bert_inputs = {
