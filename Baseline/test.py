@@ -55,11 +55,13 @@ def main(args):
 
         result_save_filepath=os.path.join(result_save_dir,"result_test_{}.txt".format(i))
         labels_save_filepath=os.path.join(result_save_dir,"labels_test_{}.txt".format(i))
+        logits_save_filepath=os.path.join(result_save_dir,"logits_test_{}.txt".format(i))
         mf.evaluate_and_save_result(
             classifier_model,
             test_dataloader,
             result_save_filepath,
             labels_save_filepath,
+            logits_save_filepath,
             device,
             logger
         )
