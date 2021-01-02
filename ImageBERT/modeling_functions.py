@@ -247,6 +247,7 @@ def evaluate(
     ret={
         "pred_labels":pred_labels,
         "correct_labels":correct_labels,
+        "logits":preds,
         "accuracy":accuracy,
         "eval_loss":eval_loss
     }
@@ -264,6 +265,7 @@ def evaluate_and_save_result(
     use_roi_seq_position:bool,
     result_save_filepath:str,
     labels_save_filepath:str,
+    logits_save_filepath:str,
     device:torch.device,
     logger:logging.Logger):
     """
@@ -294,3 +296,6 @@ def evaluate_and_save_result(
     with open(labels_save_filepath,"w") as w:
         for pred_label,correct_label in zip(pred_labels,correct_labels):
             w.write("{} {}\n".format(pred_label,correct_label))
+
+    logits=res["logits"]
+    np.savetxt(logits_save_filepath,logits)

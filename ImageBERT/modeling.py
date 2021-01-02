@@ -156,6 +156,7 @@ def main(args):
         #評価
         result_save_filepath=os.path.join(result_save_dir,"result_eval_{}.txt".format(epoch))
         labels_save_filepath=os.path.join(result_save_dir,"labels_eval_{}.txt".format(epoch))
+        logits_save_filepath=os.path.join(result_save_dir,"logits_eval_{}.txt".format(epoch))
         mf.evaluate_and_save_result(
             classifier_model,
             dev_qohs,
@@ -167,6 +168,7 @@ def main(args):
             use_roi_seq_position,
             result_save_filepath,
             labels_save_filepath,
+            logits_save_filepath,
             device,
             logger
         )
